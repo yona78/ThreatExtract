@@ -1,0 +1,58 @@
+{
+  "config": {
+    "cache_dir": "model_cache/fork1",
+    "device": "auto",
+    "dnrti_dir": "/private/tmp/DNRTI-extracted",
+    "download_dnrti": false,
+    "download_models": false,
+    "dry_run": false,
+    "models": [
+      "securebert",
+      "cyner"
+    ],
+    "offline": true,
+    "out_dir": "reports/fork1",
+    "repeats": 1,
+    "seed": 20260621,
+    "split": "test",
+    "subset_sizes": [
+      "10",
+      "100",
+      "all"
+    ]
+  },
+  "dataset": [
+    {
+      "label_counts": {
+        "Area": 216,
+        "Exp": 132,
+        "Features": 116,
+        "HackOrg": 369,
+        "Idus": 129,
+        "OffAct": 150,
+        "Org": 137,
+        "Purp": 115,
+        "SamFile": 248,
+        "SecTeam": 152,
+        "Time": 169,
+        "Tool": 315,
+        "Way": 100
+      },
+      "labeled_tokens": 3606,
+      "malformed_lines": 16,
+      "sentences": 664,
+      "spans": 2348,
+      "split": "test",
+      "tokens": 17716
+    }
+  ],
+  "environment": {
+    "mps_available": false,
+    "platform": "macOS-26.3-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.12.8 (v3.12.8:2dc476bcb91, Dec  3 2024, 14:43:19) [Clang 13.0.0 (clang-1300.0.29.30)]",
+    "torch_version": "2.5.1",
+    "transformers_version": "4.46.3"
+  },
+  "warnings_count": 16
+}
