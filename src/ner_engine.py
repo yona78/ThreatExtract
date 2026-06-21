@@ -12,7 +12,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
-from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+# NOTE: ``transformers`` is imported lazily inside ``NerEngine.__init__`` so the
+# pure helpers (chunk_text, merge_entities, strip_bio) and the dataclasses can be
+# imported and unit-tested without the heavy torch/transformers stack — which is
+# what keeps CI fast (it installs neither).
 
 _BIO_PREFIXES = ("B-", "I-", "L-", "U-", "E-", "S-")
 _DEFAULT_MAX_LENGTH = 512
@@ -119,6 +122,12 @@ class NerEngine:
     """Stateful wrapper around a Hugging Face token-classification pipeline."""
 
     def __init__(self, model_path, aggregation_strategy: str = "simple", chunk_overlap: int = 32):
+        from transformers import (
+            AutoModelForTokenClassification,
+            AutoTokenizer,
+            pipeline,
+        )
+
         self.model_path = str(model_path)
         self.aggregation_strategy = aggregation_strategy
         self.chunk_overlap = chunk_overlap
