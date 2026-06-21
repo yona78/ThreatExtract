@@ -1,0 +1,29 @@
+# Keep the build context (and image) small.
+# NOTE: model_cache/ is intentionally NOT ignored — the Dockerfile COPYs it in.
+
+.git/
+.gitignore
+.dockerignore
+
+# Virtual environments / caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.mypy_cache/
+
+# Dev-only / non-runtime files
+tests/
+docs/
+.github/
+.claude/
+requirements-dev.txt
+*.md
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,14 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  | model_cache
+  | \.venv
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
