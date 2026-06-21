@@ -1,6 +1,13 @@
 # DNRTI Dataset Audit
 
-Source repository: https://github.com/SCreaMxp/DNRTI-A-Large-scale-Dataset-for-Named-Entity-Recognition-in-Threat-Intelligence
+## Summary
+
+The authoritative dataset source is the user-provided GitHub repository.
+The archive contains `train.txt`, `valid.txt`, and `test.txt` files in a
+CoNLL-like token/tag format. Evaluation uses the published `test.txt` split
+without resampling for the final claim.
+
+![DNRTI label distribution](figures/dnrti_label_distribution.svg)
 
 | Split | Sentences | Tokens | Labeled BIO tokens | Collapsed spans | Malformed lines |
 |---|---:|---:|---:|---:|---:|
@@ -8,46 +15,36 @@ Source repository: https://github.com/SCreaMxp/DNRTI-A-Large-scale-Dataset-for-N
 
 ## Label Counts
 
-### test
+| Label | Gold spans | Share |
+|---|---:|---:|
+| HackOrg | 369 | 15.7% |
+| Tool | 315 | 13.4% |
+| SamFile | 248 | 10.6% |
+| Area | 216 | 9.2% |
+| Time | 169 | 7.2% |
+| SecTeam | 152 | 6.5% |
+| OffAct | 150 | 6.4% |
+| Org | 137 | 5.8% |
+| Exp | 132 | 5.6% |
+| Idus | 129 | 5.5% |
+| Features | 116 | 4.9% |
+| Purp | 115 | 4.9% |
+| Way | 100 | 4.3% |
 
-| Label | Spans |
-|---|---:|
-| Area | 216 |
-| Exp | 132 |
-| Features | 116 |
-| HackOrg | 369 |
-| Idus | 129 |
-| OffAct | 150 |
-| Org | 137 |
-| Purp | 115 |
-| SamFile | 248 |
-| SecTeam | 152 |
-| Time | 169 |
-| Tool | 315 |
-| Way | 100 |
+## Data Quality Notes
 
-## Parsing Notes
+- The source contains occasional tag-only `O` rows. The parser skips these
+  rows and counts them as malformed source lines rather than treating `O`
+  as a literal token.
+- Published DNRTI entity totals often count labeled BIO tokens. This report
+  distinguishes labeled BIO tokens from collapsed spans because strict NER
+  evaluation is span based.
+- The test split is imbalanced: `HackOrg`, `Tool`, and `SamFile` dominate
+  support, while `Way`, `Purp`, and `Features` have low but nontrivial
+  support. This is why per-label analysis is necessary.
 
-- The raw files are token/tag rows with blank lines between sentences.
-- Gold spans are reconstructed over a normalized single-space sentence string.
-- Tag-only `O` lines are skipped and counted as malformed source rows.
-- Published DNRTI entity totals often refer to labeled BIO tokens; this audit also reports collapsed entity spans for strict span matching.
+## Evaluation Implication
 
-## First 25 Warnings
-
-- `test.txt:4734: skipped tag-only line 'O'`
-- `test.txt:5938: skipped tag-only line 'O'`
-- `test.txt:6515: skipped tag-only line 'O'`
-- `test.txt:7520: skipped tag-only line 'O'`
-- `test.txt:10729: skipped tag-only line 'O'`
-- `test.txt:13961: skipped tag-only line 'O'`
-- `test.txt:13964: skipped tag-only line 'O'`
-- `test.txt:14027: skipped tag-only line 'O'`
-- `test.txt:14666: skipped tag-only line 'O'`
-- `test.txt:14732: skipped tag-only line 'O'`
-- `test.txt:14741: skipped tag-only line 'O'`
-- `test.txt:15281: skipped tag-only line 'O'`
-- `test.txt:16007: skipped tag-only line 'O'`
-- `test.txt:16010: skipped tag-only line 'O'`
-- `test.txt:16073: skipped tag-only line 'O'`
-- `test.txt:17265: skipped tag-only line 'O'`
+A single micro-F1 number hides whether a model is useful for the product.
+For example, detecting `Time` and `Area` may matter for incident timelines
+and affected geography even if these labels are not the most frequent.

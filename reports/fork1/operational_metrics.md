@@ -1,29 +1,34 @@
-# Operational Metrics
+# Operational Metrics For On-Prem Deployment
 
-This report records deployment-relevant metrics for offline/on-prem selection.
+## Why Operations Matter
 
-- Device requested: `auto`
-- Cache directory: `model_cache/fork1`
-- Estimated energy constant: `18.0` watts
+The selected model must ship inside an offline Docker environment. Accuracy is
+necessary, but image size, RAM headroom, startup time, and energy cost also
+affect customer deployment feasibility.
 
-## Model Footprint
+![Operational tradeoffs](figures/operational_tradeoffs.svg)
 
-| Model | Cache bytes | RSS before load MB | RSS after load MB |
-|---|---:|---:|---:|
-| securebert | 996220887 | 239.109375 | 292.125 |
-| cyner | 1124083139 | 699.46875 | 699.46875 |
+| Model | Parameters | Cache bytes | Full-test elapsed | RSS peak MB | Estimated energy J |
+|---|---:|---:|---:|---:|---:|
+| SecureBERT-NER | 124085800 | 996220887 | 24.468s | 699.46875 | 440.426 |
+| CyNER | 277461515 | 1124083139 | 26.489s | 890.046875 | 476.801 |
 
-## Inference Runs
+## Discussion
 
-| Model | Samples | Elapsed s | RSS peak MB | Energy J | Docs/s | Tokens/s |
-|---|---:|---:|---:|---:|---:|---:|
-| securebert | 10 | 0.987 | 636.375 | 17.768 | 10.131 | 229.964 |
-| securebert | 100 | 3.666 | 666.3125 | 65.992 | 27.276 | 711.359 |
-| securebert | 664 | 24.468 | 699.46875 | 440.426 | 27.137 | 724.045 |
-| cyner | 10 | 1.032 | 834.9375 | 18.572 | 9.692 | 220.012 |
-| cyner | 100 | 4.709 | 848.8125 | 84.768 | 21.235 | 553.796 |
-| cyner | 664 | 26.489 | 890.046875 | 476.801 | 25.067 | 668.807 |
+SecureBERT is not just more accurate in this benchmark; it is also the easier
+model to ship. It has fewer parameters, a smaller Hugging Face cache, lower
+observed RSS peak, and lower full-test elapsed time. This matters for an
+offline Docker image because model cache size directly affects image size or
+mounted artifact size, and memory peak affects minimum customer hardware.
 
-Energy values are estimates unless collected with hardware counters such as
-`powermetrics` on macOS. The benchmark keeps this explicit so energy is not
-mistaken for a direct measurement.
+Energy is reported as an estimate: elapsed seconds multiplied by an assumed
+18 W device profile. For a production-grade measurement on macOS, rerun the
+benchmark while sampling `powermetrics` and record package power directly.
+
+## MPS Note
+
+The script supports `--device auto`, `--device mps`, and `--device cpu`. This
+run used CPU because the process reported `mps_available=false`. On an Apple
+M4 workstation, rerun with MPS exposed to get deployment-relevant latency.
+The model-selection logic should still be based on accuracy first; MPS mainly
+changes the operational envelope.
