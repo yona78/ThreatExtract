@@ -1,0 +1,13 @@
+# ThreatExtract runtime dependencies (pinned for reproducibility).
+# Note: in the Docker image, torch is installed from the CPU-only wheel index
+# (see Dockerfile) to keep the image small; this file stays platform-portable
+# so it also works for local dev on macOS / Apple Silicon.
+
+streamlit==1.40.0
+transformers==4.46.3
+torch==2.5.1
+huggingface_hub==0.26.2
+tokenizers==0.20.1
+sentencepiece==0.2.0
+python-magic==0.4.27
+pandas==2.2.3
