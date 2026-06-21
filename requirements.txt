@@ -1,7 +1,7 @@
 # ThreatExtract runtime dependencies (pinned for reproducibility).
-# Note: in the Docker image, torch is installed from the CPU-only wheel index
-# (see Dockerfile) to keep the image small; this file stays platform-portable
-# so it also works for local dev on macOS / Apple Silicon.
+# torch is the CPU build: on arm64 (e.g. Apple Silicon) the default wheel is
+# already CPU-only, and on x86_64 the Dockerfile installs it from the PyTorch
+# CPU index to slim the image. This file stays platform-portable for local dev.
 
 streamlit==1.40.0
 transformers==4.46.3
