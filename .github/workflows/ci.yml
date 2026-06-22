@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    name: Lint & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install libmagic (backs python-magic)
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
+
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      # Scope lint/format to the Fork 2 app so the shared repo's other files
+      # don't affect this workflow.
+      - name: Lint (flake8)
+        run: flake8 app.py src tests download_model.py
+
+      - name: Format check (black)
+        run: black --check app.py src tests download_model.py
+
+      - name: Unit tests (pytest)
+        run: pytest
