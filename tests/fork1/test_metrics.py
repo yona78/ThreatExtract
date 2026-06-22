@@ -1,5 +1,5 @@
 from fork1.data import Sample, Span
-from fork1.metrics import bootstrap_gap_ci, corpus_f1, mcnemar, score
+from fork1.metrics import bootstrap_gap_ci, corpus_f1, mcnemar, sample_muc_counts, score
 
 
 def _g(start: int, end: int, label: str) -> Span:
@@ -68,6 +68,22 @@ def test_corpus_f1_micro_aggregates_sentence_counts() -> None:
     }
 
     assert corpus_f1(samples, preds, "securebert", "strict") == 0.5
+
+
+def test_sample_muc_counts_preserve_sample_order() -> None:
+    samples = [
+        _sample("test-0", [_g(0, 5, "HackOrg")]),
+        _sample("test-1", [_g(0, 5, "Tool")]),
+    ]
+    preds = {
+        "test-0": [_p(0, 5, "APT")],
+        "test-1": [_p(0, 4, "MAL")],
+    }
+
+    counts = sample_muc_counts(samples, preds, "securebert", "strict")
+
+    assert [item.cor for item in counts] == [1, 0]
+    assert [item.inc for item in counts] == [0, 1]
 
 
 def test_bootstrap_ci_orders_low_high() -> None:

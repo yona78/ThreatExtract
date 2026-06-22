@@ -98,12 +98,26 @@ def _sum_counts(items: list[MucCounts]) -> MucCounts:
     return total
 
 
-def corpus_f1(samples, preds, model_name: str, scheme: str) -> float:
-    per_sample = [
+def sample_muc_counts(samples, preds, model_name: str, scheme: str) -> list[MucCounts]:
+    return [
         muc_counts(sample.gold_spans, preds.get(sample.sample_id, []), model_name)[scheme]
         for sample in samples
     ]
+
+
+def corpus_f1(samples, preds, model_name: str, scheme: str) -> float:
+    per_sample = sample_muc_counts(samples, preds, model_name, scheme)
     return float(prf(_sum_counts(per_sample), scheme)["f1"])
+
+
+def _f1_from_sample_counts(
+    counts: list[MucCounts], scheme: str, indices: list[int] | None = None
+) -> float:
+    if indices is None:
+        selected = counts
+    else:
+        selected = [counts[index] for index in indices]
+    return float(prf(_sum_counts(selected), scheme)["f1"])
 
 
 def bootstrap_gap_ci(
@@ -116,19 +130,19 @@ def bootstrap_gap_ci(
     n: int,
     seed: int,
 ) -> tuple[float, float, float]:
-    gap = corpus_f1(samples, preds_a, model_a, scheme) - corpus_f1(
-        samples, preds_b, model_b, scheme
-    )
+    counts_a = sample_muc_counts(samples, preds_a, model_a, scheme)
+    counts_b = sample_muc_counts(samples, preds_b, model_b, scheme)
+    gap = _f1_from_sample_counts(counts_a, scheme) - _f1_from_sample_counts(counts_b, scheme)
     if not samples or n <= 0:
         return gap, gap, gap
 
     rng = random.Random(seed)
     gaps: list[float] = []
     for _ in range(n):
-        resampled = [samples[rng.randrange(len(samples))] for _ in samples]
+        indices = [rng.randrange(len(samples)) for _ in samples]
         gaps.append(
-            corpus_f1(resampled, preds_a, model_a, scheme)
-            - corpus_f1(resampled, preds_b, model_b, scheme)
+            _f1_from_sample_counts(counts_a, scheme, indices)
+            - _f1_from_sample_counts(counts_b, scheme, indices)
         )
 
     try:
