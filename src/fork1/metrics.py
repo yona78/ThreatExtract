@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+import random
 from dataclasses import dataclass
 
 from fork1.mapping import map_model_label_to_dnrti
@@ -83,3 +85,102 @@ def prf(counts: MucCounts, scheme: str) -> dict[str, float | int]:
 def score(gold_spans, pred_spans, model_name: str) -> dict[str, dict[str, float | int]]:
     counts_by_scheme = muc_counts(gold_spans, pred_spans, model_name)
     return {scheme: prf(counts, scheme) for scheme, counts in counts_by_scheme.items()}
+
+
+def _sum_counts(items: list[MucCounts]) -> MucCounts:
+    total = MucCounts()
+    for item in items:
+        total.cor += item.cor
+        total.inc += item.inc
+        total.par += item.par
+        total.mis += item.mis
+        total.spu += item.spu
+    return total
+
+
+def corpus_f1(samples, preds, model_name: str, scheme: str) -> float:
+    per_sample = [
+        muc_counts(sample.gold_spans, preds.get(sample.sample_id, []), model_name)[scheme]
+        for sample in samples
+    ]
+    return float(prf(_sum_counts(per_sample), scheme)["f1"])
+
+
+def bootstrap_gap_ci(
+    samples,
+    preds_a,
+    preds_b,
+    model_a: str,
+    model_b: str,
+    scheme: str,
+    n: int,
+    seed: int,
+) -> tuple[float, float, float]:
+    gap = corpus_f1(samples, preds_a, model_a, scheme) - corpus_f1(
+        samples, preds_b, model_b, scheme
+    )
+    if not samples or n <= 0:
+        return gap, gap, gap
+
+    rng = random.Random(seed)
+    gaps: list[float] = []
+    for _ in range(n):
+        resampled = [samples[rng.randrange(len(samples))] for _ in samples]
+        gaps.append(
+            corpus_f1(resampled, preds_a, model_a, scheme)
+            - corpus_f1(resampled, preds_b, model_b, scheme)
+        )
+
+    try:
+        import numpy as np
+    except ImportError:
+        ordered = sorted(gaps)
+        low_index = max(0, min(len(ordered) - 1, int(0.025 * (len(ordered) - 1))))
+        high_index = max(0, min(len(ordered) - 1, int(0.975 * (len(ordered) - 1))))
+        return ordered[low_index], ordered[high_index], gap
+
+    low, high = np.percentile(gaps, [2.5, 97.5])
+    return float(low), float(high), gap
+
+
+def _strict_gold_correctness(gold_spans, pred_spans, model_name: str) -> list[bool]:
+    correct = [False for _ in gold_spans]
+    used_gold: set[int] = set()
+    for pred in sorted(pred_spans, key=lambda span: span.score or 0.0, reverse=True):
+        for gold_index, gold in enumerate(gold_spans):
+            if gold_index in used_gold:
+                continue
+            if _exact(gold, pred) and _type_ok(gold, pred, model_name):
+                correct[gold_index] = True
+                used_gold.add(gold_index)
+                break
+    return correct
+
+
+def mcnemar(samples, preds_a, preds_b, model_a: str, model_b: str) -> tuple[float, float]:
+    a_only = 0
+    b_only = 0
+    for sample in samples:
+        correct_a = _strict_gold_correctness(
+            sample.gold_spans,
+            preds_a.get(sample.sample_id, []),
+            model_a,
+        )
+        correct_b = _strict_gold_correctness(
+            sample.gold_spans,
+            preds_b.get(sample.sample_id, []),
+            model_b,
+        )
+        for is_a_correct, is_b_correct in zip(correct_a, correct_b):
+            if is_a_correct and not is_b_correct:
+                a_only += 1
+            elif is_b_correct and not is_a_correct:
+                b_only += 1
+
+    discordant = a_only + b_only
+    if discordant == 0:
+        return 0.0, 1.0
+
+    statistic = (abs(a_only - b_only) - 1) ** 2 / discordant
+    p_value = math.exp(-statistic / 2)
+    return statistic, p_value
