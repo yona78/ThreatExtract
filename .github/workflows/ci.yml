@@ -28,11 +28,11 @@ jobs:
 
       # Scope lint/format to the Fork 2 app so the shared repo's other files
       # don't affect this workflow.
-      - name: Lint (flake8)
-        run: flake8 app.py src tests download_model.py
+      - name: Lint (ruff)
+        run: ruff check app.py src tests download_model.py
 
       - name: Format check (black)
         run: black --check app.py src tests download_model.py
 
-      - name: Unit tests (pytest)
+      - name: Unit tests + coverage gate (pytest ≥85%)
         run: pytest
