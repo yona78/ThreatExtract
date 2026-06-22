@@ -9,6 +9,7 @@ from fork1.run_experiment import (
     iter_preprocessing_sweep_configs,
     prepare_samples_for_config,
     predict_samples,
+    write_preprocessing_tornado,
     write_preprocessing_report,
 )
 
@@ -138,6 +139,22 @@ def test_write_preprocessing_report_includes_ci_and_flip_columns(tmp_path: Path)
     text = (tmp_path / "preprocessing.md").read_text(encoding="utf-8")
     assert "| Config | Model | Strict F1 | Gap | 95% CI | Flip? |" in text
     assert "detok=single_space" in text
+
+
+def test_write_preprocessing_tornado_groups_swing_by_lever(tmp_path: Path) -> None:
+    rows = [
+        {"config": "detok=single_space", "model": "securebert", "strict_f1": 0.28},
+        {"config": "detok=punct_aware", "model": "securebert", "strict_f1": 0.27},
+        {"config": "detok=single_space", "model": "cyner", "strict_f1": 0.10},
+        {"config": "detok=punct_aware", "model": "cyner", "strict_f1": 0.09},
+    ]
+
+    write_preprocessing_tornado(tmp_path / "tornado.svg", rows)
+
+    text = (tmp_path / "tornado.svg").read_text(encoding="utf-8")
+    assert "<svg" in text
+    assert "detok" in text
+    assert "securebert" in text
 
 
 def test_run_experiment_module_help_works_from_repo_root() -> None:

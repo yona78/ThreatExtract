@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -241,6 +242,8 @@ def write_preprocessing_report(path: Path, rows: list[dict[str, object]]) -> Non
     lines = [
         "# Preprocessing Sensitivity",
         "",
+        "![Preprocessing tornado](figures/preprocessing_tornado.svg)",
+        "",
         "| Config | Model | Strict F1 | Gap | 95% CI | Flip? |",
         "|---|---|---:|---:|---|---|",
     ]
@@ -253,6 +256,54 @@ def write_preprocessing_report(path: Path, rows: list[dict[str, object]]) -> Non
         )
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_preprocessing_tornado(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    swings: list[tuple[str, str, float]] = []
+    grouped: dict[tuple[str, str], list[float]] = {}
+    for row in rows:
+        config = str(row["config"])
+        lever = config.split("=", 1)[0]
+        model = str(row["model"])
+        grouped.setdefault((lever, model), []).append(float(row["strict_f1"]))
+    for (lever, model), values in grouped.items():
+        if not values:
+            continue
+        swings.append((lever, model, max(values) - min(values)))
+    swings.sort(key=lambda item: item[2], reverse=True)
+
+    width = 760
+    row_height = 28
+    left = 210
+    top = 34
+    chart_width = 480
+    height = max(120, top + row_height * len(swings) + 24)
+    max_swing = max((swing for _, _, swing in swings), default=1.0) or 1.0
+    palette = {"securebert": "#2f6fbb", "cyner": "#c45746"}
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        'viewBox="0 0 {0} {1}">'.format(width, height),
+        '<rect width="100%" height="100%" fill="white"/>',
+        '<text x="20" y="24" font-family="Arial" font-size="16" font-weight="700">'
+        "Preprocessing F1 Swing</text>",
+    ]
+    for index, (lever, model, swing) in enumerate(swings):
+        y = top + index * row_height
+        bar_width = int((swing / max_swing) * chart_width)
+        label = html.escape(f"{lever} / {model}")
+        color = palette.get(model, "#777777")
+        parts.append(f'<text x="20" y="{y + 17}" font-family="Arial" font-size="12">{label}</text>')
+        parts.append(
+            f'<rect x="{left}" y="{y + 5}" width="{bar_width}" height="16" fill="{color}"/>'
+        )
+        parts.append(
+            f'<text x="{left + bar_width + 8}" y="{y + 17}" font-family="Arial" '
+            f'font-size="12">{swing:.4f}</text>'
+        )
+    parts.append("</svg>")
+    path.write_text("\n".join(parts), encoding="utf-8")
 
 
 def run_preprocessing_sweep(
@@ -279,6 +330,7 @@ def run_preprocessing_sweep(
             )
         )
     write_jsonl(out_dir / "preprocessing_sensitivity.jsonl", rows)
+    write_preprocessing_tornado(out_dir / "figures" / "preprocessing_tornado.svg", rows)
     write_preprocessing_report(out_dir / "preprocessing_sensitivity.md", rows)
     return rows
 
