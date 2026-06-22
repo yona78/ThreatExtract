@@ -80,6 +80,29 @@ def test_predict_samples_projects_context_spans_with_active_detok_offsets() -> N
     assert predictions["test-0"][0].text == "."
 
 
+class BoundaryRunner:
+    def predict(self, text: str, max_length: int | None = None):
+        assert text == "APT hit ."
+        return [Span(label="APT", start=1, end=3, text="PT", score=0.9, source="securebert")]
+
+
+def test_predict_samples_preserves_raw_char_boundaries_in_sentence_context() -> None:
+    prepared = prepare_samples_for_config(
+        [_sample()],
+        ExperimentConfig(name="single", detok="single_space"),
+    )
+
+    predictions = predict_samples(
+        prepared,
+        BoundaryRunner(),
+        ExperimentConfig(name="single", detok="single_space"),
+    )
+
+    assert predictions["test-0"][0].start == 1
+    assert predictions["test-0"][0].end == 3
+    assert predictions["test-0"][0].text == "PT"
+
+
 def test_write_preprocessing_report_includes_ci_and_flip_columns(tmp_path: Path) -> None:
     rows = [
         {

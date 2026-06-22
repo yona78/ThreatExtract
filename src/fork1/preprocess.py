@@ -59,6 +59,7 @@ class ContextDoc:
     token_offsets: tuple[tuple[int, int], ...]
     token_refs: tuple[tuple[str, int], ...]
     sample_ids: tuple[str, ...]
+    sample_char_ranges: tuple[tuple[str, int, int], ...]
 
     def token_refs_for_span(self, start: int, end: int) -> list[tuple[str, int]]:
         return [
@@ -72,6 +73,7 @@ def _context_from_samples(samples, detokenizer: Detokenizer = detok_single_space
     parts: list[str] = []
     token_offsets: list[tuple[int, int]] = []
     token_refs: list[tuple[str, int]] = []
+    sample_char_ranges: list[tuple[str, int, int]] = []
     cursor = 0
 
     for sample in samples:
@@ -85,6 +87,7 @@ def _context_from_samples(samples, detokenizer: Detokenizer = detok_single_space
         base = cursor
         parts.append(sentence_text)
         cursor += len(sentence_text)
+        sample_char_ranges.append((sample.sample_id, base, cursor))
 
         for token_index, (start, end) in enumerate(sentence_offsets):
             token_offsets.append((base + start, base + end))
@@ -95,6 +98,7 @@ def _context_from_samples(samples, detokenizer: Detokenizer = detok_single_space
         token_offsets=tuple(token_offsets),
         token_refs=tuple(token_refs),
         sample_ids=tuple(sample.sample_id for sample in samples),
+        sample_char_ranges=tuple(sample_char_ranges),
     )
 
 

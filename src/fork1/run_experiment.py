@@ -61,11 +61,6 @@ def prepare_samples_for_config(samples: list[Sample], config: ExperimentConfig) 
     return prepared
 
 
-def _sample_token_offsets(sample: Sample, config: ExperimentConfig) -> list[tuple[int, int]]:
-    _, offsets = DETOKENIZERS[config.detok](list(sample.tokens))
-    return offsets
-
-
 def _project_context_predictions(
     samples: list[Sample],
     context,
@@ -73,17 +68,15 @@ def _project_context_predictions(
     config: ExperimentConfig,
 ) -> dict[str, list]:
     by_id = {sample.sample_id: sample for sample in samples}
-    sample_offsets = {sample.sample_id: _sample_token_offsets(sample, config) for sample in samples}
     projected = {sample.sample_id: [] for sample in samples}
     for pred in pred_spans:
-        refs = context.token_refs_for_span(pred.start, pred.end)
-        refs_by_sample: dict[str, list[int]] = {}
-        for sample_id, token_index in refs:
-            refs_by_sample.setdefault(sample_id, []).append(token_index)
-        for sample_id, token_indices in refs_by_sample.items():
-            offsets = sample_offsets[sample_id]
-            start = min(offsets[index][0] for index in token_indices)
-            end = max(offsets[index][1] for index in token_indices)
+        for sample_id, sample_start, sample_end in context.sample_char_ranges:
+            overlap_start = max(pred.start, sample_start)
+            overlap_end = min(pred.end, sample_end)
+            if overlap_start >= overlap_end:
+                continue
+            start = overlap_start - sample_start
+            end = overlap_end - sample_start
             sample = by_id[sample_id]
             projected[sample_id].append(
                 type(pred)(
