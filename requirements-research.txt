@@ -1,0 +1,5 @@
+seqeval==1.2.2
+nervaluate==0.2.0
+sacremoses==0.1.1
+matplotlib==3.9.2
+numpy==2.1.3
