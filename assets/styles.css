@@ -1,0 +1,190 @@
+/* ThreatExtract — "threat console" theme.
+   Dark, monospace, terminal-amber chrome. Entity colors are injected inline
+   per class via the --ent custom property, so any model's classes get distinct,
+   stable colors. No external fonts/CDNs — fully offline. */
+
+:root {
+  --bg: #0a0c10;
+  --panel: #12151c;
+  --panel-2: #171b25;
+  --border: #232a38;
+  --text: #e8eaed;
+  --muted: #888f9e;
+  --accent: #f4b740;
+  --accent-soft: rgba(244, 183, 64, 0.14);
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo,
+    "DejaVu Sans Mono", monospace;
+}
+
+/* ---- App canvas: near-black with a faint engineering grid ---- */
+.stApp {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.block-container {
+  padding-top: 2.4rem;
+  max-width: 1180px;
+}
+
+/* Trim Streamlit's default chrome for a more "product" feel */
+[data-testid="stHeader"] { background: transparent; }
+#MainMenu, footer { visibility: hidden; }
+
+* { font-family: var(--mono); }
+
+/* ---- Masthead ---- */
+.te-header {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(244, 183, 64, 0.10), transparent 55%),
+    var(--panel);
+  position: relative;
+  overflow: hidden;
+}
+.te-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent 0 3px, rgba(0, 0, 0, 0.12) 3px 4px);
+  pointer-events: none;
+  opacity: 0.5;
+}
+.te-title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+.te-title .te-accent { color: var(--accent); }
+.te-tag {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.te-status {
+  position: absolute;
+  top: 22px;
+  right: 26px;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.te-status .dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 7px;
+  box-shadow: 0 0 8px var(--accent);
+  animation: te-pulse 2s ease-in-out infinite;
+}
+@keyframes te-pulse { 50% { opacity: 0.35; } }
+
+/* ---- Section labels ---- */
+.te-label {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 8px 0 10px;
+  border-left: 2px solid var(--accent);
+  padding-left: 9px;
+}
+
+/* ---- Class chips (summary + legend) ---- */
+.te-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
+.te-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--ent) 55%, transparent);
+  background: color-mix(in srgb, var(--ent) 14%, transparent);
+}
+.te-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ent);
+}
+.te-chip b { color: var(--ent); font-weight: 700; }
+
+/* ---- Highlighted document ---- */
+.te-doc {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  line-height: 2.25;
+  font-size: 14px;
+  color: #c9cdd6;
+  max-height: 460px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ent {
+  background: color-mix(in srgb, var(--ent) 18%, transparent);
+  border-bottom: 2px solid var(--ent);
+  border-radius: 4px 4px 2px 2px;
+  padding: 1px 4px;
+  color: var(--text);
+  position: relative;
+  cursor: default;
+}
+.ent sup {
+  color: var(--ent);
+  font-size: 0.62em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-left: 3px;
+  vertical-align: super;
+}
+
+/* ---- Sidebar engine panel ---- */
+section[data-testid="stSidebar"] { background: var(--panel); border-right: 1px solid var(--border); }
+.te-meta { display: flex; justify-content: space-between; font-size: 12.5px; padding: 5px 0; border-bottom: 1px dashed var(--border); }
+.te-meta .k { color: var(--muted); }
+.te-meta .v { color: var(--text); font-weight: 600; }
+
+/* ---- Buttons (download + actions) ---- */
+.stDownloadButton button, .stButton button {
+  border: 1px solid var(--accent) !important;
+  color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  border-radius: 9px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+}
+.stDownloadButton button:hover, .stButton button:hover {
+  background: var(--accent) !important;
+  color: #0a0c10 !important;
+}
+
+/* ---- Empty state ---- */
+.te-empty {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 34px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  background: var(--panel);
+}
+.te-empty .big { color: var(--text); font-size: 15px; margin-bottom: 6px; letter-spacing: 1px; }

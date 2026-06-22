@@ -1,0 +1,31 @@
+# ThreatExtract — local/on-prem run.
+#   1) python download_model.py          (populates ./model_cache/, online, once)
+#   2) docker compose up --build         (builds offline image, serves on :8501)
+services:
+  threatextract:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: threatextract:latest
+    container_name: threatextract
+    ports:
+      - "8501:8501"
+    environment:
+      # --- The dynamic model-swap point ---------------------------------- #
+      # Point this at any model directory inside model_cache/ to serve a
+      # different model — no code changes. Just download the model first and
+      # set MODEL_PATH to its folder.
+      MODEL_PATH: /app/model_cache/CyberPeace-Institute__SecureBERT-NER
+      # --- Runtime tunables ---------------------------------------------- #
+      MAX_FILE_MB: "10"
+      CHUNK_OVERLAP: "32"
+      AGGREGATION_STRATEGY: simple
+      # --- Hard offline guarantees --------------------------------------- #
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_OFFLINE: "1"
+    volumes:
+      # Optional: mount your local cache so you can swap models by editing
+      # MODEL_PATH above without rebuilding. Comment this out to rely solely on
+      # the self-contained copy baked into the image.
+      - ./model_cache:/app/model_cache:ro
+    restart: unless-stopped

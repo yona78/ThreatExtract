@@ -1,0 +1,8 @@
+# Dev / CI dependencies — lint + unit tests only.
+# Deliberately excludes torch/transformers/streamlit so CI stays fast; the tests
+# cover the pure helpers and file validation (the latter needs python-magic,
+# backed by the system libmagic library — installed separately in CI/Docker).
+black==24.10.0
+flake8==7.1.1
+pytest==8.3.3
+python-magic==0.4.27

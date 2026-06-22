@@ -1,0 +1,16 @@
+# Streamlit base theme. Fine-grained styling lives in assets/styles.css.
+# Uses the browser's monospace font (no external CDN) so it works fully offline.
+[theme]
+base = "dark"
+primaryColor = "#f4b740"
+backgroundColor = "#0a0c10"
+secondaryBackgroundColor = "#12151c"
+textColor = "#e8eaed"
+font = "monospace"
+
+[server]
+# The app processes one file at a time; keep uploads bounded.
+maxUploadSize = 25
+
+[browser]
+gatherUsageStats = false
