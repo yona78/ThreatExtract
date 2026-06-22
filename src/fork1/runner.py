@@ -157,8 +157,15 @@ class HfTokenClassificationRunner:
     def predict(self, text: str, max_length: int | None = None) -> list[Span]:
         if self.pipe is None:
             raise RuntimeError(f"{self.name} runner is not loaded")
-        kwargs = {"truncation": True, "max_length": max_length} if max_length else {}
-        raw_entities = self.pipe(text, **kwargs)
+        if max_length and self.tokenizer is not None:
+            previous_max_length = self.tokenizer.model_max_length
+            self.tokenizer.model_max_length = max_length
+            try:
+                raw_entities = self.pipe(text)
+            finally:
+                self.tokenizer.model_max_length = previous_max_length
+        else:
+            raw_entities = self.pipe(text)
         spans: list[Span] = []
         for entity in raw_entities:
             label = entity.get("entity_group") or entity.get("entity") or ""
