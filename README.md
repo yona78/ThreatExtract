@@ -178,9 +178,9 @@ docs/superpowers/specs/   design spec
   runtime the app loads with `local_files_only=True` and the container sets
   `TRANSFORMERS_OFFLINE=1` / `HF_HUB_OFFLINE=1`, so no network call can occur.
 - **One file at a time**, per the assignment.
-- **Image size.** `model_cache/` can be large (some repos ship both `.bin` and
-  `.safetensors`); keep only the model(s) you intend to serve in `model_cache/`
-  before building.
+- **Image size.** `download_model.py` skips the redundant `pytorch_model.bin`
+  when a repo also ships `safetensors`, keeping the cache lean; otherwise keep
+  only the model(s) you intend to serve in `model_cache/` before building.
 
 ## License
 
