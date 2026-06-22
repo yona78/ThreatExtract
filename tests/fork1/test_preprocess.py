@@ -1,4 +1,24 @@
-from fork1.preprocess import defang, detok_punct_aware, detok_single_space, normalize_text, refang
+from fork1.data import Sample
+from fork1.preprocess import (
+    defang,
+    detok_punct_aware,
+    detok_single_space,
+    iter_contexts,
+    normalize_text,
+    refang,
+)
+
+
+def _sample(sample_id: str, tokens: tuple[str, ...]) -> Sample:
+    return Sample(
+        sample_id=sample_id,
+        split="test",
+        index=int(sample_id.rsplit("-", 1)[-1]),
+        text=" ".join(tokens),
+        tokens=tokens,
+        tags=tuple("O" for _ in tokens),
+        gold_spans=[],
+    )
 
 
 def test_single_space_matches_legacy() -> None:
@@ -33,3 +53,28 @@ def test_defang_refang_round_trips_ioc() -> None:
     original = "http://1.1.1.1"
 
     assert refang(defang(original)) == original
+
+
+def test_iter_contexts_sentence_mode_returns_one_context_per_sample() -> None:
+    samples = [_sample("test-0", ("APT", "hit")), _sample("test-1", ("CVE", "found"))]
+
+    contexts = iter_contexts(samples, "sentence")
+
+    assert [context.text for context in contexts] == ["APT hit", "CVE found"]
+    assert contexts[0].token_refs == (("test-0", 0), ("test-0", 1))
+
+
+def test_iter_contexts_window_mode_concatenates_and_preserves_back_map() -> None:
+    samples = [_sample("test-0", ("APT", "hit")), _sample("test-1", ("CVE", "found"))]
+
+    contexts = iter_contexts(samples, "window", window=2, stride=2)
+
+    assert len(contexts) == 1
+    assert contexts[0].text == "APT hit CVE found"
+    assert contexts[0].token_refs == (
+        ("test-0", 0),
+        ("test-0", 1),
+        ("test-1", 0),
+        ("test-1", 1),
+    )
+    assert contexts[0].token_refs_for_span(8, 11) == [("test-1", 0)]
