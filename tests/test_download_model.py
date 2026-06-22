@@ -3,7 +3,7 @@
 These are pure unit tests — no network access, no model download required.
 """
 
-from download_model import build_ignore_patterns, _BASE_IGNORE_PATTERNS
+from download_model import _BASE_IGNORE_PATTERNS, build_ignore_patterns
 
 
 class TestBuildIgnorePatterns:

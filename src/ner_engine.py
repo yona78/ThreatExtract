@@ -9,8 +9,8 @@ from the model's own config — none are hardcoded.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, List, Optional
 
 # NOTE: ``transformers`` is imported lazily inside ``NerEngine.__init__`` so the
 # pure helpers (chunk_text, merge_entities, strip_bio) and the dataclasses can be
@@ -50,7 +50,7 @@ def strip_bio(label: str) -> str:
     return label
 
 
-def chunk_text(text: str, tokenizer, max_length: int, overlap: int) -> List[Chunk]:
+def chunk_text(text: str, tokenizer, max_length: int, overlap: int) -> list[Chunk]:
     """Split ``text`` into token-aligned, overlapping chunks that fit the model.
 
     Chunks are cut on token boundaries (via the fast tokenizer's offset mapping),
@@ -69,7 +69,7 @@ def chunk_text(text: str, tokenizer, max_length: int, overlap: int) -> List[Chun
         return [Chunk(text=text, offset=0)]
 
     step = max(1, window - overlap)
-    chunks: List[Chunk] = []
+    chunks: list[Chunk] = []
     start_tok = 0
     while start_tok < n:
         end_tok = min(start_tok + window, n)
@@ -82,7 +82,7 @@ def chunk_text(text: str, tokenizer, max_length: int, overlap: int) -> List[Chun
     return chunks
 
 
-def merge_entities(entities: List[Entity], full_text: str) -> List[Entity]:
+def merge_entities(entities: list[Entity], full_text: str) -> list[Entity]:
     """De-duplicate and stitch entities into clean spans.
 
     1. Drop identical spans (seen in overlapping chunks), keeping the best score.
@@ -101,7 +101,7 @@ def merge_entities(entities: List[Entity], full_text: str) -> List[Entity]:
             best[key] = ent
     ordered = sorted(best.values(), key=lambda e: (e.start, e.end))
 
-    merged: List[Entity] = []
+    merged: list[Entity] = []
     for ent in ordered:
         prev = merged[-1] if merged else None
         if prev and ent.class_name == prev.class_name and ent.start <= prev.end:
@@ -154,7 +154,7 @@ class NerEngine:
         return min(valid) if valid else _DEFAULT_MAX_LENGTH
 
     @property
-    def class_names(self) -> List[str]:
+    def class_names(self) -> list[str]:
         """Sorted entity class names from the model config (BIO-stripped, no O)."""
         names = set()
         for label in self.id2label.values():
@@ -164,14 +164,14 @@ class NerEngine:
         return sorted(names)
 
     def extract_entities(
-        self, text: str, progress_cb: Optional[Callable[[int, int], None]] = None
-    ) -> List[Entity]:
+        self, text: str, progress_cb: Callable[[int, int], None] | None = None
+    ) -> list[Entity]:
         """Return merged entities for ``text`` (empty list for blank input)."""
         if not text or not text.strip():
             return []
         chunks = chunk_text(text, self.tokenizer, self.max_length, self.chunk_overlap)
         total = len(chunks)
-        entities: List[Entity] = []
+        entities: list[Entity] = []
         for index, chunk in enumerate(chunks):
             for raw in self.pipeline(chunk.text):
                 entities.append(self._to_entity(raw, chunk.offset, text))
