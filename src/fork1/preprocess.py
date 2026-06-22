@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import unicodedata
 from collections.abc import Callable
 
 
@@ -48,3 +50,32 @@ DETOKENIZERS: dict[str, Detokenizer] = {
     "single_space": detok_single_space,
     "punct_aware": detok_punct_aware,
 }
+
+
+def refang(text: str) -> str:
+    output = re.sub("hxxps", "https", text, flags=re.IGNORECASE)
+    output = re.sub("hxxp", "http", output, flags=re.IGNORECASE)
+    output = re.sub(r"\[\.\]|\[dot\]|\(dot\)", ".", output, flags=re.IGNORECASE)
+    output = re.sub(r"\[at\]|\(at\)", "@", output, flags=re.IGNORECASE)
+    return output
+
+
+def defang(text: str) -> str:
+    output = text.replace("https://", "hxxps://").replace("http://", "hxxp://")
+    output = output.replace("@", "[at]")
+    output = output.replace(".", "[.]")
+    return output
+
+
+def normalize_text(text: str, mode: str) -> str:
+    if mode == "none":
+        return text
+    if mode == "nfc":
+        return unicodedata.normalize("NFC", text)
+    if mode == "nfkc":
+        return unicodedata.normalize("NFKC", text)
+    if mode == "refang":
+        return refang(text)
+    if mode == "lower":
+        return text.lower()
+    raise ValueError(f"unknown normalization mode: {mode}")
