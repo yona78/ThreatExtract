@@ -154,10 +154,11 @@ class HfTokenClassificationRunner:
             "cache_model_dir": str(hf_cache_model_dir(self.cache_dir, self.model_id)),
         }
 
-    def predict(self, text: str) -> list[Span]:
+    def predict(self, text: str, max_length: int | None = None) -> list[Span]:
         if self.pipe is None:
             raise RuntimeError(f"{self.name} runner is not loaded")
-        raw_entities = self.pipe(text)
+        kwargs = {"truncation": True, "max_length": max_length} if max_length else {}
+        raw_entities = self.pipe(text, **kwargs)
         spans: list[Span] = []
         for entity in raw_entities:
             label = entity.get("entity_group") or entity.get("entity") or ""

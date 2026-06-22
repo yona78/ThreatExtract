@@ -68,7 +68,7 @@ class ContextDoc:
         ]
 
 
-def _context_from_samples(samples) -> ContextDoc:
+def _context_from_samples(samples, detokenizer: Detokenizer = detok_single_space) -> ContextDoc:
     parts: list[str] = []
     token_offsets: list[tuple[int, int]] = []
     token_refs: list[tuple[str, int]] = []
@@ -79,7 +79,7 @@ def _context_from_samples(samples) -> ContextDoc:
             parts.append(" ")
             cursor += 1
 
-        sentence_text, sentence_offsets = detok_single_space(list(sample.tokens))
+        sentence_text, sentence_offsets = detokenizer(list(sample.tokens))
         if not sentence_text:
             sentence_text = sample.text
         base = cursor
@@ -98,18 +98,24 @@ def _context_from_samples(samples) -> ContextDoc:
     )
 
 
-def iter_contexts(samples, mode: str, window: int = 3, stride: int = 2) -> list[ContextDoc]:
+def iter_contexts(
+    samples,
+    mode: str,
+    window: int = 3,
+    stride: int = 2,
+    detokenizer: Detokenizer = detok_single_space,
+) -> list[ContextDoc]:
     if mode == "sentence":
-        return [_context_from_samples([sample]) for sample in samples]
+        return [_context_from_samples([sample], detokenizer) for sample in samples]
     if mode == "document":
-        return [_context_from_samples(samples)] if samples else []
+        return [_context_from_samples(samples, detokenizer)] if samples else []
     if mode == "window":
         if window < 1:
             raise ValueError("window must be >= 1")
         if stride < 1:
             raise ValueError("stride must be >= 1")
         return [
-            _context_from_samples(samples[start : start + window])
+            _context_from_samples(samples[start : start + window], detokenizer)
             for start in range(0, len(samples), stride)
             if samples[start : start + window]
         ]
