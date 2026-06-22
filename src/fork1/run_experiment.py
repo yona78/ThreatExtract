@@ -61,6 +61,55 @@ def prepare_samples_for_config(samples: list[Sample], config: ExperimentConfig) 
     return prepared
 
 
+def _token_offsets_for_config(sample: Sample, config: ExperimentConfig) -> list[tuple[int, int]]:
+    _, offsets = DETOKENIZERS[config.detok](list(sample.tokens))
+    return offsets
+
+
+def _token_matches_policy(token_start: int, token_end: int, span, policy: str) -> bool:
+    overlap = max(0, min(token_end, span.end) - max(token_start, span.start))
+    if policy == "overlap":
+        return overlap > 0
+    if policy == "majority":
+        return overlap > ((token_end - token_start) / 2)
+    if policy == "contained":
+        return span.start <= token_start and token_end <= span.end
+    raise ValueError(f"unknown alignment policy: {policy}")
+
+
+def apply_alignment_policy(
+    sample: Sample,
+    pred_spans,
+    config: ExperimentConfig,
+) -> list:
+    if config.alignment == "overlap":
+        return list(pred_spans)
+
+    token_offsets = _token_offsets_for_config(sample, config)
+    aligned = []
+    for pred in pred_spans:
+        selected = [
+            (start, end)
+            for start, end in token_offsets
+            if _token_matches_policy(start, end, pred, config.alignment)
+        ]
+        if not selected:
+            continue
+        start = min(item[0] for item in selected)
+        end = max(item[1] for item in selected)
+        aligned.append(
+            type(pred)(
+                label=pred.label,
+                start=start,
+                end=end,
+                text=sample.text[start:end],
+                score=pred.score,
+                source=pred.source,
+            )
+        )
+    return aligned
+
+
 def _project_context_predictions(
     samples: list[Sample],
     context,
@@ -103,6 +152,12 @@ def predict_samples(samples: list[Sample], runner, config: ExperimentConfig) -> 
         projected = _project_context_predictions(samples, context, pred_spans, config)
         for sample_id, spans in projected.items():
             predictions[sample_id].extend(spans)
+    by_id = {sample.sample_id: sample for sample in samples}
+    if config.alignment != "overlap":
+        predictions = {
+            sample_id: apply_alignment_policy(by_id[sample_id], spans, config)
+            for sample_id, spans in predictions.items()
+        }
     return predictions
 
 

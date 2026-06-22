@@ -5,6 +5,7 @@ import sys
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, Span
 from fork1.run_experiment import (
+    apply_alignment_policy,
     iter_preprocessing_sweep_configs,
     prepare_samples_for_config,
     predict_samples,
@@ -101,6 +102,22 @@ def test_predict_samples_preserves_raw_char_boundaries_in_sentence_context() -> 
     assert predictions["test-0"][0].start == 1
     assert predictions["test-0"][0].end == 3
     assert predictions["test-0"][0].text == "PT"
+
+
+def test_contained_alignment_drops_partial_token_prediction() -> None:
+    prepared = prepare_samples_for_config(
+        [_sample()],
+        ExperimentConfig(name="single", detok="single_space"),
+    )[0]
+    partial = Span(label="APT", start=1, end=3, text="PT", score=0.9, source="securebert")
+
+    aligned = apply_alignment_policy(
+        prepared,
+        [partial],
+        ExperimentConfig(name="contained", alignment="contained"),
+    )
+
+    assert aligned == []
 
 
 def test_write_preprocessing_report_includes_ci_and_flip_columns(tmp_path: Path) -> None:
