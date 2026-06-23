@@ -656,19 +656,6 @@ def _pred_bio_for_unique_labels(
     return bio_tags_from_label_sets([labels & unique_labels for labels in aligned])
 
 
-def _filter_samples_to_unique_labels(
-    samples: list[Sample],
-    unique_labels: set[str],
-) -> list[Sample]:
-    return [
-        replace(
-            sample,
-            gold_spans=[span for span in sample.gold_spans if span.label in unique_labels],
-        )
-        for sample in samples
-    ]
-
-
 def _filter_predictions_to_unique_labels(predictions: dict[str, list], model_name: str):
     return {
         sample_id: [
@@ -676,6 +663,49 @@ def _filter_predictions_to_unique_labels(predictions: dict[str, list], model_nam
         ]
         for sample_id, spans in predictions.items()
     }
+
+
+def _bio_spans(tags: list[str]) -> set[tuple[int, int, str]]:
+    spans: set[tuple[int, int, str]] = set()
+    start: int | None = None
+    current_label: str | None = None
+    for index, tag in enumerate([*tags, "O"]):
+        if tag == "O":
+            label = None
+            starts_new = False
+        else:
+            prefix, label = tag.split("-", 1)
+            starts_new = prefix == "B" or label != current_label
+
+        if current_label is not None and (label is None or starts_new):
+            assert start is not None
+            spans.add((start, index, current_label))
+            start = None
+            current_label = None
+
+        if label is not None and start is None:
+            start = index
+            current_label = label
+    return spans
+
+
+def _strict_f1_from_bio(gold_bio: list[list[str]], pred_bio: list[list[str]]) -> float:
+    gold = {
+        (sentence_index, *span)
+        for sentence_index, tags in enumerate(gold_bio)
+        for span in _bio_spans(tags)
+    }
+    pred = {
+        (sentence_index, *span)
+        for sentence_index, tags in enumerate(pred_bio)
+        for span in _bio_spans(tags)
+    }
+    true_positive = len(gold & pred)
+    false_positive = len(pred - gold)
+    false_negative = len(gold - pred)
+    precision = true_positive / (true_positive + false_positive) if pred else 0.0
+    recall = true_positive / (true_positive + false_negative) if gold else 0.0
+    return 2 * precision * recall / (precision + recall) if precision + recall else 0.0
 
 
 def mapping_coverage_for_model(samples: list[Sample], model_name: str) -> dict[str, object]:
@@ -707,14 +737,7 @@ def seqeval_cross_check(
     from seqeval.scheme import IOB2
 
     unique_labels = unique_mapped_dnrti_labels(model_name)
-    filtered_samples = _filter_samples_to_unique_labels(samples, unique_labels)
     filtered_predictions = _filter_predictions_to_unique_labels(predictions, model_name)
-    our_f1 = corpus_f1(
-        filtered_samples,
-        filtered_predictions,
-        model_name,
-        config.scheme,
-    )
     gold_bio = [_gold_bio_for_unique_labels(sample, unique_labels) for sample in samples]
     pred_bio = [
         _pred_bio_for_unique_labels(
@@ -726,8 +749,11 @@ def seqeval_cross_check(
         )
         for sample in samples
     ]
+    our_f1 = _strict_f1_from_bio(gold_bio, pred_bio)
     seqeval_f1 = float(seqeval_f1_score(gold_bio, pred_bio, mode="strict", scheme=IOB2))
-    unique_gold_spans = sum(len(sample.gold_spans) for sample in filtered_samples)
+    unique_gold_spans = sum(
+        1 for sample in samples for span in sample.gold_spans if span.label in unique_labels
+    )
     return {
         "protocol": config.name,
         "model": model_name,

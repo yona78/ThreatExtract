@@ -263,6 +263,37 @@ def test_seqeval_cross_check_matches_strict_on_unique_labels() -> None:
     assert check["delta"] == 0.0
 
 
+def test_seqeval_cross_check_uses_token_aligned_strict_scoring() -> None:
+    pytest.importorskip("seqeval")
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="APT",
+            tokens=("APT",),
+            tags=("B-HackOrg",),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
+            ],
+        )
+    ]
+    predictions = {
+        "test-0": [Span(label="APT", start=1, end=2, text="P", score=0.9, source="securebert")]
+    }
+
+    check = seqeval_cross_check(
+        samples,
+        predictions,
+        "securebert",
+        ExperimentConfig(name="pdf_mapping", bootstrap=0),
+    )
+
+    assert check["our_f1"] == 1.0
+    assert check["seqeval_f1"] == 1.0
+    assert check["delta"] == 0.0
+
+
 class FakeRunner:
     def predict(self, text: str, max_length: int | None = None):
         assert text == "APT hit."
