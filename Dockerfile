@@ -41,6 +41,10 @@ COPY assets/ /app/assets/
 COPY .streamlit/ /app/.streamlit/
 COPY app.py /app/app.py
 
+# A sample report (761 B) so the app can be tested immediately — in the UI or
+# headlessly via `docker exec` (see the README's "Test the app" section).
+COPY examples/ /app/examples/
+
 # Default model to load; override via docker-compose or `-e MODEL_PATH=...`
 # to dynamically swap models without touching the code.
 ENV MODEL_PATH=/app/model_cache/CyberPeace-Institute__SecureBERT-NER
