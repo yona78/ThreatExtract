@@ -2,8 +2,11 @@
 # Deliberately excludes torch/transformers/streamlit so CI stays fast; the tests
 # cover the pure helpers and file validation (the latter needs python-magic,
 # backed by the system libmagic library — installed separately in CI/Docker).
+# seqeval is included because Fork 1's pure scoring cross-check tests need it
+# for coverage parity; heavier research/runtime dependencies stay out of CI.
 black==24.10.0
 ruff==0.8.4
 pytest==8.3.3
 pytest-cov==6.0.0
 python-magic==0.4.27
+seqeval==1.2.2
