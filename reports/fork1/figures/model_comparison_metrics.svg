@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="620" viewBox="0 0 1080 620" role="img">
+<title>DNRTI Test-Set Accuracy Comparison</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="120" y="36" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">DNRTI Test-Set Accuracy Comparison</text>
+<text x="120" y="60" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">Full test split, exact span matching plus relaxed overlap metric.</text>
+<line x1="120" y1="510.0" x2="1030" y2="510.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="108" y="514.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">0.00</text>
+<line x1="120" y1="400.0" x2="1030" y2="400.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="108" y="404.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">0.25</text>
+<line x1="120" y1="290.0" x2="1030" y2="290.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="108" y="294.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">0.50</text>
+<line x1="120" y1="180.0" x2="1030" y2="180.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="108" y="184.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">0.75</text>
+<line x1="120" y1="70.0" x2="1030" y2="70.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="108" y="74.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">1.00</text>
+<rect x="199.8" y="385.8" width="56" height="124.2" rx="4" fill="#2563eb"/>
+<text x="227.8" y="377.8" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.282</text>
+<rect x="267.8" y="463.9" width="56" height="46.1" rx="4" fill="#dc2626"/>
+<text x="295.8" y="455.9" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.105</text>
+<text x="233.8" y="562" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#111827">Exact F1</text>
+<rect x="427.2" y="411.5" width="56" height="98.5" rx="4" fill="#2563eb"/>
+<text x="455.2" y="403.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.224</text>
+<rect x="495.2" y="457.2" width="56" height="52.8" rx="4" fill="#dc2626"/>
+<text x="523.2" y="449.2" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.120</text>
+<text x="461.2" y="562" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#111827">Exact Precision</text>
+<rect x="654.8" y="341.9" width="56" height="168.1" rx="4" fill="#2563eb"/>
+<text x="682.8" y="333.9" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.382</text>
+<rect x="722.8" y="469.1" width="56" height="40.9" rx="4" fill="#dc2626"/>
+<text x="750.8" y="461.1" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.093</text>
+<text x="688.8" y="562" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#111827">Exact Recall</text>
+<rect x="882.2" y="286.2" width="56" height="223.8" rx="4" fill="#2563eb"/>
+<text x="910.2" y="278.2" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.509</text>
+<rect x="950.2" y="395.4" width="56" height="114.6" rx="4" fill="#dc2626"/>
+<text x="978.2" y="387.4" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.260</text>
+<text x="916.2" y="562" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#111827">Relaxed F1</text>
+<rect x="120" y="580" width="16" height="16" fill="#2563eb"/>
+<text x="144" y="593" font-family="Arial, sans-serif" font-size="13" fill="#111827">SecureBERT-NER</text>
+<rect x="330" y="580" width="16" height="16" fill="#dc2626"/>
+<text x="354" y="593" font-family="Arial, sans-serif" font-size="13" fill="#111827">CyNER</text>
+</svg>

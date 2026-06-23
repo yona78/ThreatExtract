@@ -1,0 +1,4 @@
+{"delta": 0.0, "model": "securebert", "our_f1": 0.7300230187438342, "protocol": "pdf_mapping", "seqeval_f1": 0.7300230187438342, "unique_gold_spans": 1601, "unique_labels": ["Area", "Exp", "HackOrg", "SamFile", "SecTeam", "Time", "Tool"]}
+{"delta": 0.0, "model": "cyner", "our_f1": 0.33405639913232105, "protocol": "pdf_mapping", "seqeval_f1": 0.33405639913232105, "unique_gold_spans": 695, "unique_labels": ["Exp", "SamFile", "Tool"]}
+{"delta": 0.0, "model": "securebert", "our_f1": 0.7023809523809524, "protocol": "paper_native", "seqeval_f1": 0.7023809523809524, "unique_gold_spans": 1601, "unique_labels": ["Area", "Exp", "HackOrg", "SamFile", "SecTeam", "Time", "Tool"]}
+{"delta": 0.0, "model": "cyner", "our_f1": 0.296943231441048, "protocol": "paper_native", "seqeval_f1": 0.296943231441048, "unique_gold_spans": 695, "unique_labels": ["Exp", "SamFile", "Tool"]}

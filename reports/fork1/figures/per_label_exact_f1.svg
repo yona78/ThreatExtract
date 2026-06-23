@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="760" viewBox="0 0 1100 760" role="img">
+<title>Per-Label Exact F1 Heatmap</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="140" y="36" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">Per-Label Exact F1 Heatmap</text>
+<text x="140" y="60" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">Numbers expose ontology gaps that aggregate F1 can hide.</text>
+<text x="420.0" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#111827">SecureBERT-NER</text>
+<text x="540.0" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#111827">CyNER</text>
+<text x="140" y="88" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#111827">DNRTI label</text>
+<text x="260" y="88" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#111827">Support</text>
+<text x="140" y="136" font-family="Arial, sans-serif" font-size="13" fill="#111827">HackOrg</text>
+<text x="276" y="136" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">369</text>
+<rect x="360" y="112" width="108" height="31" rx="5" fill="rgb(226,236,255)"/>
+<text x="414.0" y="134" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.112</text>
+<rect x="480" y="112" width="108" height="31" rx="5" fill="rgb(255,229,229)"/>
+<text x="534.0" y="134" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.092</text>
+<text x="140" y="174" font-family="Arial, sans-serif" font-size="13" fill="#111827">Tool</text>
+<text x="276" y="174" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">315</text>
+<rect x="360" y="150" width="108" height="31" rx="5" fill="rgb(216,226,255)"/>
+<text x="414.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.173</text>
+<rect x="480" y="150" width="108" height="31" rx="5" fill="rgb(255,231,231)"/>
+<text x="534.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.082</text>
+<text x="140" y="212" font-family="Arial, sans-serif" font-size="13" fill="#111827">SamFile</text>
+<text x="276" y="212" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">248</text>
+<rect x="360" y="188" width="108" height="31" rx="5" fill="rgb(217,227,255)"/>
+<text x="414.0" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.168</text>
+<rect x="480" y="188" width="108" height="31" rx="5" fill="rgb(255,235,235)"/>
+<text x="534.0" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.060</text>
+<text x="140" y="250" font-family="Arial, sans-serif" font-size="13" fill="#111827">Area</text>
+<text x="276" y="250" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">216</text>
+<rect x="360" y="226" width="108" height="31" rx="5" fill="rgb(136,146,255)"/>
+<text x="414.0" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.657</text>
+<rect x="480" y="226" width="108" height="31" rx="5" fill="rgb(255,245,245)"/>
+<text x="534.0" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.000</text>
+<text x="140" y="288" font-family="Arial, sans-serif" font-size="13" fill="#111827">Time</text>
+<text x="276" y="288" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">169</text>
+<rect x="360" y="264" width="108" height="31" rx="5" fill="rgb(127,137,255)"/>
+<text x="414.0" y="286" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.714</text>
+<rect x="480" y="264" width="108" height="31" rx="5" fill="rgb(255,245,245)"/>
+<text x="534.0" y="286" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.000</text>
+<text x="140" y="326" font-family="Arial, sans-serif" font-size="13" fill="#111827">SecTeam</text>
+<text x="276" y="326" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">152</text>
+<rect x="360" y="302" width="108" height="31" rx="5" fill="rgb(151,161,255)"/>
+<text x="414.0" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.568</text>
+<rect x="480" y="302" width="108" height="31" rx="5" fill="rgb(255,184,184)"/>
+<text x="534.0" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.366</text>
+<text x="140" y="364" font-family="Arial, sans-serif" font-size="13" fill="#111827">OffAct</text>
+<text x="276" y="364" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">150</text>
+<rect x="360" y="340" width="108" height="31" rx="5" fill="rgb(223,233,255)"/>
+<text x="414.0" y="362" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.128</text>
+<rect x="480" y="340" width="108" height="31" rx="5" fill="rgb(255,245,245)"/>
+<text x="534.0" y="362" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.000</text>
+<text x="140" y="402" font-family="Arial, sans-serif" font-size="13" fill="#111827">Org</text>
+<text x="276" y="402" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">137</text>
+<rect x="360" y="378" width="108" height="31" rx="5" fill="rgb(171,181,255)"/>
+<text x="414.0" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.446</text>
+<rect x="480" y="378" width="108" height="31" rx="5" fill="rgb(255,236,236)"/>
+<text x="534.0" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.052</text>
+<text x="140" y="440" font-family="Arial, sans-serif" font-size="13" fill="#111827">Exp</text>
+<text x="276" y="440" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">132</text>
+<rect x="360" y="416" width="108" height="31" rx="5" fill="rgb(241,251,255)"/>
+<text x="414.0" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.024</text>
+<rect x="480" y="416" width="108" height="31" rx="5" fill="rgb(255,228,228)"/>
+<text x="534.0" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.103</text>
+<text x="140" y="478" font-family="Arial, sans-serif" font-size="13" fill="#111827">Idus</text>
+<text x="276" y="478" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">129</text>
+<rect x="360" y="454" width="108" height="31" rx="5" fill="rgb(171,181,255)"/>
+<text x="414.0" y="476" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.445</text>
+<rect x="480" y="454" width="108" height="31" rx="5" fill="rgb(255,242,242)"/>
+<text x="534.0" y="476" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.018</text>
+<text x="140" y="516" font-family="Arial, sans-serif" font-size="13" fill="#111827">Features</text>
+<text x="276" y="516" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">116</text>
+<rect x="360" y="492" width="108" height="31" rx="5" fill="rgb(245,255,255)"/>
+<text x="414.0" y="514" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.000</text>
+<rect x="480" y="492" width="108" height="31" rx="5" fill="rgb(255,245,245)"/>
+<text x="534.0" y="514" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.000</text>
+<text x="140" y="554" font-family="Arial, sans-serif" font-size="13" fill="#111827">Purp</text>
+<text x="276" y="554" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">115</text>
+<rect x="360" y="530" width="108" height="31" rx="5" fill="rgb(245,255,255)"/>
+<text x="414.0" y="552" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.000</text>
+<rect x="480" y="530" width="108" height="31" rx="5" fill="rgb(255,245,245)"/>
+<text x="534.0" y="552" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.000</text>
+<text x="140" y="592" font-family="Arial, sans-serif" font-size="13" fill="#111827">Way</text>
+<text x="276" y="592" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">100</text>
+<rect x="360" y="568" width="108" height="31" rx="5" fill="rgb(219,229,255)"/>
+<text x="414.0" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.157</text>
+<rect x="480" y="568" width="108" height="31" rx="5" fill="rgb(255,241,241)"/>
+<text x="534.0" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">0.020</text>
+</svg>

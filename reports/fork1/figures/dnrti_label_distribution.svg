@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="720" viewBox="0 0 1080 720" role="img">
+<title>DNRTI Test Split Label Distribution</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="130" y="36" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">DNRTI Test Split Label Distribution</text>
+<text x="130" y="60" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">Collapsed entity spans after BIO reconstruction.</text>
+<text x="116" y="96" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Way</text>
+<rect x="130" y="82" width="243.9" height="22" rx="4" fill="#4f46e5"/>
+<text x="381.9" y="98" font-family="Arial, sans-serif" font-size="12" fill="#111827">100</text>
+<text x="116" y="134" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Purp</text>
+<rect x="130" y="120" width="280.5" height="22" rx="4" fill="#4f46e5"/>
+<text x="418.5" y="136" font-family="Arial, sans-serif" font-size="12" fill="#111827">115</text>
+<text x="116" y="172" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Features</text>
+<rect x="130" y="158" width="282.9" height="22" rx="4" fill="#4f46e5"/>
+<text x="420.9" y="174" font-family="Arial, sans-serif" font-size="12" fill="#111827">116</text>
+<text x="116" y="210" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Idus</text>
+<rect x="130" y="196" width="314.6" height="22" rx="4" fill="#4f46e5"/>
+<text x="452.6" y="212" font-family="Arial, sans-serif" font-size="12" fill="#111827">129</text>
+<text x="116" y="248" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Exp</text>
+<rect x="130" y="234" width="322.0" height="22" rx="4" fill="#4f46e5"/>
+<text x="460.0" y="250" font-family="Arial, sans-serif" font-size="12" fill="#111827">132</text>
+<text x="116" y="286" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Org</text>
+<rect x="130" y="272" width="334.1" height="22" rx="4" fill="#4f46e5"/>
+<text x="472.1" y="288" font-family="Arial, sans-serif" font-size="12" fill="#111827">137</text>
+<text x="116" y="324" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">OffAct</text>
+<rect x="130" y="310" width="365.9" height="22" rx="4" fill="#4f46e5"/>
+<text x="503.9" y="326" font-family="Arial, sans-serif" font-size="12" fill="#111827">150</text>
+<text x="116" y="362" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">SecTeam</text>
+<rect x="130" y="348" width="370.7" height="22" rx="4" fill="#4f46e5"/>
+<text x="508.7" y="364" font-family="Arial, sans-serif" font-size="12" fill="#111827">152</text>
+<text x="116" y="400" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Time</text>
+<rect x="130" y="386" width="412.2" height="22" rx="4" fill="#4f46e5"/>
+<text x="550.2" y="402" font-family="Arial, sans-serif" font-size="12" fill="#111827">169</text>
+<text x="116" y="438" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Area</text>
+<rect x="130" y="424" width="526.8" height="22" rx="4" fill="#4f46e5"/>
+<text x="664.8" y="440" font-family="Arial, sans-serif" font-size="12" fill="#111827">216</text>
+<text x="116" y="476" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">SamFile</text>
+<rect x="130" y="462" width="604.9" height="22" rx="4" fill="#4f46e5"/>
+<text x="742.9" y="478" font-family="Arial, sans-serif" font-size="12" fill="#111827">248</text>
+<text x="116" y="514" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">Tool</text>
+<rect x="130" y="500" width="768.3" height="22" rx="4" fill="#4f46e5"/>
+<text x="906.3" y="516" font-family="Arial, sans-serif" font-size="12" fill="#111827">315</text>
+<text x="116" y="552" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#111827">HackOrg</text>
+<rect x="130" y="538" width="900.0" height="22" rx="4" fill="#4f46e5"/>
+<text x="1038.0" y="554" font-family="Arial, sans-serif" font-size="12" fill="#111827">369</text>
+</svg>

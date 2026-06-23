@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="338" viewBox="0 0 760 338">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20" y="24" font-family="Arial" font-size="16" font-weight="700">Preprocessing F1 Swing</text>
+<text x="20" y="51" font-family="Arial" font-size="12">context / securebert</text>
+<rect x="210" y="39" width="480" height="16" fill="#2f6fbb"/>
+<text x="698" y="51" font-family="Arial" font-size="12">0.2698</text>
+<text x="20" y="79" font-family="Arial" font-size="12">alignment / securebert</text>
+<rect x="210" y="67" width="434" height="16" fill="#2f6fbb"/>
+<text x="652" y="79" font-family="Arial" font-size="12">0.2443</text>
+<text x="20" y="107" font-family="Arial" font-size="12">normalization / securebert</text>
+<rect x="210" y="95" width="222" height="16" fill="#2f6fbb"/>
+<text x="440" y="107" font-family="Arial" font-size="12">0.1253</text>
+<text x="20" y="135" font-family="Arial" font-size="12">alignment / cyner</text>
+<rect x="210" y="123" width="209" height="16" fill="#c45746"/>
+<text x="427" y="135" font-family="Arial" font-size="12">0.1178</text>
+<text x="20" y="163" font-family="Arial" font-size="12">context / cyner</text>
+<rect x="210" y="151" width="175" height="16" fill="#c45746"/>
+<text x="393" y="163" font-family="Arial" font-size="12">0.0987</text>
+<text x="20" y="191" font-family="Arial" font-size="12">normalization / cyner</text>
+<rect x="210" y="179" width="64" height="16" fill="#c45746"/>
+<text x="282" y="191" font-family="Arial" font-size="12">0.0362</text>
+<text x="20" y="219" font-family="Arial" font-size="12">detok / securebert</text>
+<rect x="210" y="207" width="10" height="16" fill="#2f6fbb"/>
+<text x="228" y="219" font-family="Arial" font-size="12">0.0056</text>
+<text x="20" y="247" font-family="Arial" font-size="12">detok / cyner</text>
+<rect x="210" y="235" width="1" height="16" fill="#c45746"/>
+<text x="219" y="247" font-family="Arial" font-size="12">0.0007</text>
+<text x="20" y="275" font-family="Arial" font-size="12">max_length / securebert</text>
+<rect x="210" y="263" width="0" height="16" fill="#2f6fbb"/>
+<text x="218" y="275" font-family="Arial" font-size="12">0.0000</text>
+<text x="20" y="303" font-family="Arial" font-size="12">max_length / cyner</text>
+<rect x="210" y="291" width="0" height="16" fill="#c45746"/>
+<text x="218" y="303" font-family="Arial" font-size="12">0.0000</text>
+</svg>

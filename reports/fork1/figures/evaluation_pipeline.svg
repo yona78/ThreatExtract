@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="360" viewBox="0 0 1120 360" role="img">
+<defs>
+<marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+<path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+</marker>
+</defs>
+<title>Benchmark Evaluation Pipeline</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="40" y="36" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">Benchmark Evaluation Pipeline</text>
+<text x="40" y="60" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">The comparison is designed to isolate transfer performance from taxonomy mismatch.</text>
+<rect x="40" y="140" width="160" height="82" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="120.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">DNRTI.rar</text>
+<text x="120.0" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">official GitHub archive</text>
+<line x1="204" y1="181.0" x2="216" y2="181.0" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="222" y="140" width="160" height="82" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="302.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">CoNLL parser</text>
+<text x="302.0" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">token/tag rows, BIO spans</text>
+<line x1="386" y1="181.0" x2="398" y2="181.0" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="404" y="140" width="160" height="82" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="484.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">PDF mapping</text>
+<text x="484.0" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">model labels -&gt; DNRTI labels</text>
+<line x1="568" y1="181.0" x2="580" y2="181.0" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="586" y="140" width="160" height="82" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="666.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">HF runners</text>
+<text x="666.0" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">SecureBERT and CyNER</text>
+<line x1="750" y1="181.0" x2="762" y2="181.0" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="768" y="140" width="160" height="82" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="848.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">Metrics</text>
+<text x="848.0" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">exact, relaxed, per-label</text>
+<line x1="932" y1="181.0" x2="944" y2="181.0" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="950" y="140" width="160" height="82" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="1030.0" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">Decision</text>
+<text x="1030.0" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">offline deployment choice</text>
+</svg>

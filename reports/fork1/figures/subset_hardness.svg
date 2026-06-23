@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="300" viewBox="0 0 760 300">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20" y="22" font-family="Arial" font-size="16" font-weight="700">hardness subset F1 vs size</text>
+<line x1="70" y1="250" x2="730" y2="250" stroke="#444"/>
+<line x1="70" y1="30" x2="70" y2="250" stroke="#444"/>
+<text x="58.0" y="276" font-family="Arial" font-size="11">10</text>
+<text x="223.0" y="276" font-family="Arial" font-size="11">50</text>
+<text x="388.0" y="276" font-family="Arial" font-size="11">100</text>
+<text x="553.0" y="276" font-family="Arial" font-size="11">250</text>
+<text x="718.0" y="276" font-family="Arial" font-size="11">all</text>
+<polyline fill="none" stroke="#2f6fbb" stroke-width="2" points="70.0,46.5 235.0,75.0 400.0,33.5 565.0,31.6 730.0,47.1"/>
+<circle cx="70.0" cy="46.5" r="3" fill="#2f6fbb"/>
+<circle cx="235.0" cy="75.0" r="3" fill="#2f6fbb"/>
+<circle cx="400.0" cy="33.5" r="3" fill="#2f6fbb"/>
+<circle cx="565.0" cy="31.6" r="3" fill="#2f6fbb"/>
+<circle cx="730.0" cy="47.1" r="3" fill="#2f6fbb"/>
+<polyline fill="none" stroke="#c45746" stroke-width="2" points="70.0,232.5 235.0,237.2 400.0,215.0 565.0,197.4 730.0,175.4"/>
+<circle cx="70.0" cy="232.5" r="3" fill="#c45746"/>
+<circle cx="235.0" cy="237.2" r="3" fill="#c45746"/>
+<circle cx="400.0" cy="215.0" r="3" fill="#c45746"/>
+<circle cx="565.0" cy="197.4" r="3" fill="#c45746"/>
+<circle cx="730.0" cy="175.4" r="3" fill="#c45746"/>
+</svg>

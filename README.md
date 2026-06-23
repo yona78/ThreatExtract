@@ -223,6 +223,31 @@ docs/superpowers/specs/   design spec
   when a repo also ships `safetensors`, keeping the cache lean; otherwise keep
   only the model(s) you intend to serve in `model_cache/` before building.
 
+## Fork 1 Research Reproduction
+
+Fork 1 compares frozen SecureBERT-NER and CyNER on DNRTI using the local offline
+cache. Keep research-only dependencies out of the Docker runtime; `make
+reproduce` installs the pinned research dependencies into `.venv` once, then all
+model inference reads local DNRTI/model-cache files:
+
+```bash
+make reproduce
+```
+
+Useful overrides:
+
+```bash
+make reproduce DNRTI_DIR=data/dnrti CACHE_DIR=model_cache/fork1 DEVICE=mps
+make e11
+```
+
+`DEVICE` defaults to `cpu` for portable reproduction; pass `DEVICE=mps` to
+rerun the accuracy sweeps on Apple MPS. The operational target always measures
+both CPU and MPS when MPS is visible.
+
+The final paper-style report is `reports/fork1/benchmark_summary.md`; the master
+table is `reports/fork1/master_table.jsonl`.
+
 ## License
 
 For assignment / evaluation use.
