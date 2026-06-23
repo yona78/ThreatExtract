@@ -16,6 +16,7 @@ from fork1.run_experiment import (
     mapping_coverage_for_model,
     prepare_samples_for_config,
     predict_samples,
+    run_intrinsic_eval,
     run_protocol_comparison,
     run_subset_study,
     seqeval_cross_check,
@@ -23,6 +24,7 @@ from fork1.run_experiment import (
     summarize_subset_cells,
     write_protocol_comparison_report,
     write_robustness_report,
+    write_intrinsic_report,
     write_subset_study_report,
     write_preprocessing_tornado,
     write_preprocessing_report,
@@ -560,6 +562,32 @@ def test_write_protocol_comparison_report_includes_rows_checks_and_coverage(
     assert "Unique-Label Coverage" in text
 
 
+def test_write_intrinsic_report_includes_oracle_and_tokenizer_metrics(
+    tmp_path: Path,
+) -> None:
+    rows = [
+        {
+            "model": "securebert",
+            "entity_fertility": 1.2,
+            "probe_fertility": 1.5,
+            "probe_single_token_coverage": 0.7,
+            "parameter_count": 123,
+            "cache_size_mb": 456.0,
+            "oracle_precision": 1.0,
+            "oracle_f1": 0.9,
+            "oracle_recall": 0.8,
+            "expressible_labels": ["HackOrg"],
+        }
+    ]
+
+    write_intrinsic_report(tmp_path / "intrinsic_metrics.md", rows)
+
+    text = (tmp_path / "intrinsic_metrics.md").read_text(encoding="utf-8")
+    assert "| Model | Entity fertility | Probe fertility | Probe 1-token coverage |" in text
+    assert "Oracle upper bound" in text
+    assert "securebert" in text
+
+
 def test_run_subset_study_reuses_full_predictions(monkeypatch, tmp_path: Path) -> None:
     samples = [
         Sample(
@@ -627,6 +655,45 @@ def test_run_subset_study_reuses_full_predictions(monkeypatch, tmp_path: Path) -
     assert (tmp_path / "reports" / "subset_study.jsonl").is_file()
     assert (tmp_path / "reports" / "subset_study.md").is_file()
     assert (tmp_path / "reports" / "figures" / "subset_random.svg").is_file()
+
+
+def test_run_intrinsic_eval_writes_report_and_jsonl(monkeypatch, tmp_path: Path) -> None:
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="CVE",
+            tokens=("CVE",),
+            tags=("B-Exp",),
+            gold_spans=[Span(label="Exp", start=0, end=3, text="CVE", score=None, source="gold")],
+        )
+    ]
+
+    class FakeTokenizer:
+        def tokenize(self, word: str) -> list[str]:
+            return [word]
+
+    def fake_load_dnrti_dataset(dnrti_dir, split):
+        return samples, [], []
+
+    monkeypatch.setattr(run_experiment, "load_dnrti_dataset", fake_load_dnrti_dataset)
+    monkeypatch.setattr(
+        run_experiment, "load_hf_tokenizer", lambda *args, **kwargs: FakeTokenizer()
+    )
+    monkeypatch.setattr(run_experiment, "model_parameter_count", lambda *args, **kwargs: 42)
+    monkeypatch.setattr(run_experiment, "directory_size_bytes", lambda path: 1024 * 1024)
+
+    rows = run_intrinsic_eval(
+        dnrti_dir=tmp_path / "dnrti",
+        out_dir=tmp_path / "reports",
+        offline=True,
+        cache_dir=tmp_path / "cache",
+    )
+
+    assert {row["model"] for row in rows} == {"securebert", "cyner"}
+    assert (tmp_path / "reports" / "intrinsic_metrics.jsonl").is_file()
+    assert (tmp_path / "reports" / "intrinsic_metrics.md").is_file()
 
 
 def test_run_protocol_comparison_writes_report_and_jsonl(monkeypatch, tmp_path: Path) -> None:
@@ -733,3 +800,4 @@ def test_run_experiment_module_help_works_from_repo_root() -> None:
     assert "--sweep" in result.stdout
     assert "subset" in result.stdout
     assert "protocol" in result.stdout
+    assert "intrinsic" in result.stdout

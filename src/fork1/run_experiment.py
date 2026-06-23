@@ -11,6 +11,13 @@ from statistics import mean, variance
 from fork1.align import align_pred_to_tokens
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, extract_bio_spans, load_dnrti_dataset
+from fork1.intrinsic import (
+    CYBER_PROBE_WORDS,
+    domain_coverage,
+    entity_surface_words,
+    oracle_upper_bound,
+    tokenizer_fertility,
+)
 from fork1.mapping import map_model_label_to_dnrti, strip_bio, unique_mapped_dnrti_labels
 from fork1.metrics import (
     bootstrap_count_gap_ci,
@@ -21,7 +28,12 @@ from fork1.metrics import (
 )
 from fork1.perturb import PERTURBATIONS, keyboard_typo, random_case
 from fork1.preprocess import DETOKENIZERS, iter_contexts, normalize_text
-from fork1.runner import MODEL_ALIASES, HfTokenClassificationRunner
+from fork1.runner import (
+    MODEL_ALIASES,
+    HfTokenClassificationRunner,
+    directory_size_bytes,
+    hf_cache_model_dir,
+)
 from fork1.subsets import sample_subset
 
 
@@ -841,6 +853,104 @@ def write_protocol_comparison_report(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def load_hf_tokenizer(model_id: str, cache_dir: Path | None, offline: bool):
+    from transformers import AutoTokenizer
+
+    return AutoTokenizer.from_pretrained(
+        model_id,
+        cache_dir=str(cache_dir) if cache_dir else None,
+        local_files_only=offline,
+    )
+
+
+def model_parameter_count(model_id: str, cache_dir: Path | None, offline: bool) -> int:
+    from transformers import AutoModelForTokenClassification
+
+    model = AutoModelForTokenClassification.from_pretrained(
+        model_id,
+        cache_dir=str(cache_dir) if cache_dir else None,
+        local_files_only=offline,
+    )
+    return sum(parameter.numel() for parameter in model.parameters())
+
+
+def write_intrinsic_report(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Intrinsic Metrics",
+        "",
+        "| Model | Entity fertility | Probe fertility | Probe 1-token coverage | "
+        "Parameters | Cache MB |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['model']} | {float(row['entity_fertility']):.4f} | "
+            f"{float(row['probe_fertility']):.4f} | "
+            f"{float(row['probe_single_token_coverage']):.4f} | "
+            f"{int(row['parameter_count'])} | {float(row['cache_size_mb']):.1f} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Oracle upper bound",
+            "",
+            "| Model | Oracle precision | Oracle recall | Oracle F1 | Expressible labels |",
+            "|---|---:|---:|---:|---|",
+        ]
+    )
+    for row in rows:
+        labels = ", ".join(row["expressible_labels"])
+        lines.append(
+            f"| {row['model']} | {float(row['oracle_precision']):.4f} | "
+            f"{float(row['oracle_recall']):.4f} | {float(row['oracle_f1']):.4f} | "
+            f"{labels} |"
+        )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def run_intrinsic_eval(
+    *,
+    dnrti_dir: Path,
+    out_dir: Path,
+    offline: bool,
+    cache_dir: Path | None,
+) -> list[dict[str, object]]:
+    samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    entity_words = entity_surface_words(samples)
+    rows: list[dict[str, object]] = []
+    for model_name in PRESETS["pdf_mapping"].models:
+        model_id = MODEL_ALIASES[model_name]
+        tokenizer = load_hf_tokenizer(model_id, cache_dir, offline)
+        oracle = oracle_upper_bound(samples, model_name)
+        cache_size = directory_size_bytes(hf_cache_model_dir(cache_dir, model_id))
+        rows.append(
+            {
+                "model": model_name,
+                "model_id": model_id,
+                "entity_words": len(entity_words),
+                "probe_words": len(CYBER_PROBE_WORDS),
+                "entity_fertility": tokenizer_fertility(tokenizer, entity_words),
+                "entity_single_token_coverage": domain_coverage(tokenizer, entity_words),
+                "probe_fertility": tokenizer_fertility(tokenizer, CYBER_PROBE_WORDS),
+                "probe_single_token_coverage": domain_coverage(tokenizer, CYBER_PROBE_WORDS),
+                "parameter_count": model_parameter_count(model_id, cache_dir, offline),
+                "cache_size_mb": (cache_size or 0) / (1024 * 1024),
+                "oracle_precision": oracle["precision"],
+                "oracle_recall": oracle["recall"],
+                "oracle_f1": oracle["f1"],
+                "oracle_true_positive": oracle["true_positive"],
+                "oracle_false_negative": oracle["false_negative"],
+                "expressible_labels": oracle["expressible_labels"],
+            }
+        )
+    write_jsonl(out_dir / "intrinsic_metrics.jsonl", rows)
+    write_intrinsic_report(out_dir / "intrinsic_metrics.md", rows)
+    return rows
+
+
 def write_robustness_report(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -1125,7 +1235,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Fork 1 experiments.")
     parser.add_argument(
         "--sweep",
-        choices=["preprocessing", "subset", "protocol", "robustness"],
+        choices=["preprocessing", "subset", "protocol", "intrinsic", "robustness"],
         required=True,
     )
     parser.add_argument("--dnrti-dir", type=Path, default=Path("data/dnrti"))
@@ -1162,6 +1272,13 @@ def main(argv: list[str] | None = None) -> int:
             offline=args.offline,
             cache_dir=args.cache_dir,
             bootstrap=args.bootstrap,
+        )
+    elif args.sweep == "intrinsic":
+        run_intrinsic_eval(
+            dnrti_dir=args.dnrti_dir,
+            out_dir=args.out_dir,
+            offline=args.offline,
+            cache_dir=args.cache_dir,
         )
     elif args.sweep == "robustness":
         run_robustness_eval(
