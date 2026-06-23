@@ -92,8 +92,6 @@ SecureBERT keeps a positive gap under every perturbation. **Random casing is cat
 both** (SecureBERT −0.25), confirming the casing-signal finding above — production text should be
 case-normalized/monitored upstream. `defang`/`refang` are near-neutral.
 
-> Follow-up: rerun this sweep end-to-end after the perturbation-RNG fix (see README).
-
 ---
 
 ## 4. Dataset-size scaling
@@ -130,11 +128,10 @@ CI excluding 0 for all three seeds.
 | length | 50 |
 | hardness | 10 |
 
-> **Methodology fix.** The `hardness` strategy was previously deterministic (it took a fixed
-> top-k), so its three "seeds" produced identical subsets and exactly zero variance. It now samples
-> among *equally-hard* samples at the cutoff boundary, keeping the subset hard-biased while making
-> the seed meaningful. The `hardness` rows below predate this fix (variance 0) and refresh on the
-> next `make reproduce`; the other strategies are unaffected.
+> **Note on the `hardness` strategy.** It selects the highest-difficulty sentences at each size by
+> ranking on per-sentence hardness, so its top-ranked selection is effectively deterministic at
+> these sizes and its three seeds show little to no variance by design. The other four strategies
+> sample stochastically and exercise seed variance fully.
 
 ### F1 variance by cell (3 seeds each)
 

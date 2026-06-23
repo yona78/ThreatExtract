@@ -43,7 +43,10 @@ def test_score_exact_counts_span_and_label() -> None:
     sample = _sample(
         "a",
         ["APT28", "hit", "Russia"],
-        [Span("HackOrg", 0, 5, "APT28", None, "gold"), Span("Area", 10, 16, "Russia", None, "gold")],
+        [
+            Span("HackOrg", 0, 5, "APT28", None, "gold"),
+            Span("Area", 10, 16, "Russia", None, "gold"),
+        ],
     )
     preds = {"a": [Span("HackOrg", 0, 5, "APT28", 1.0, "lexical")]}  # one right, one missed
     out = score_exact([sample], preds)

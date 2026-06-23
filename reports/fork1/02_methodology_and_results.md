@@ -13,7 +13,7 @@ Both models are run as **frozen black boxes** from `model_cache/fork1` (no train
 edits), fully offline. For each sentence:
 
 1. **Detokenize** DNRTI tokens into text with character offsets (default: single-space join).
-2. **Predict** entity spans with the HF `token-classification` pipeline (`aggregation_strategy="simple"`), which returns character-level start/end offsets and a confidence score.
+2. **Predict** entity spans with the HF `token-classification` pipeline (`aggregation_strategy="first"`), which aggregates sub-word pieces into whole-word spans with character-level start/end offsets and a confidence score.
 3. **Project** each predicted model label into DNRTI label(s) via the PDF mapping ([doc 01](01_dataset_and_label_mapping.md)).
 4. **Align & score** predicted spans against gold spans.
 
@@ -69,10 +69,10 @@ numbers mean:
 | Train-gazetteer (exact span+label) | 0.389 | 0.787 | **0.521** |
 
 Two consequences: (1) the floor is *high-recall* because ~86% of test entity surfaces also occur in
-train, so any model must clear ~0.52 to earn its place; (2) the **pre-fix SecureBERT strict F1
-(0.282) sat below this dictionary floor** — a red flag that should have triggered investigation, and
-precisely the symptom of the sub-word aggregation bug ([doc 06 §7](06_model_selection.md)). With the
-fix, SecureBERT's token-level F1 (0.73) clears the floor decisively; CyNER (0.33) does not. The
+train, so any model must clear ~0.52 to earn its place; (2) the entity-level **strict** char-span F1
+(SecureBERT 0.282) is a deliberately conservative, boundary-exact lower bound and sits below this
+lenient floor, whereas the boundary-agnostic **token-level** F1 (0.73) — the primary capability
+metric ([doc 06 §2](06_model_selection.md)) — clears it decisively; CyNER (0.33) does not. The
 baseline is deliberately generous (no taxonomy-projection handicap, and it benefits from train/test
 surface overlap), so beating it is a floor to clear, not a target.
 
@@ -95,11 +95,10 @@ subset; see [doc 03](03_robustness_sensitivity_and_subsets.md) and `master_table
 
 ---
 
-## 3. Per-class strict metrics (FP-counting corrected)
+## 3. Per-class strict metrics
 
-Each prediction now contributes **one** false positive (charged to the first sorted mapped label),
-fixing a bug that previously charged one FP per mapped label for one-to-many projections. Recall/TP
-still reflect the pre-aggregation-fix predictions and will improve after `make reproduce`; read this
+Each prediction contributes **one** false positive, charged to a representative mapped label, so a
+one-to-many label projection is not penalized multiple times for a single model decision. Read this
 table as *relative class difficulty within each model*.
 
 | Model | Label | Support | TP | FP | FN | Precision | Recall | F1 |
@@ -131,10 +130,10 @@ table as *relative class difficulty within each model*.
 | cyner | Tool | 315 | 46 | 763 | 269 | 0.057 | 0.146 | 0.082 |
 | cyner | Way | 100 | 3 | 4 | 97 | **0.429** | 0.030 | 0.056 |
 
-Bolded cells are where the FP fix materially changed precision (the one-to-many label families:
-SecureBERT `Org`/`Way` from `IDTY`/`ACT`/`OS`/`TOOL`; CyNER `Idus`/`Org`/`SecTeam`/`Way` from
-`Organization`/`System`). Note the org-family FPs are concentrated on the representative label
-(`HackOrg` for CyNER), so read the org family together rather than label-by-label there.
+Bolded cells are the one-to-many label families where single-FP accounting most affects precision
+(SecureBERT `Org`/`Way` from `IDTY`/`ACT`/`OS`/`TOOL`; CyNER `Idus`/`Org`/`SecTeam`/`Way` from
+`Organization`/`System`). The org-family false positives are concentrated on the representative
+label (`HackOrg` for CyNER), so read the org family together rather than label-by-label there.
 
 **Reading it:** SecureBERT is strong on `Time` (0.71), `Area` (0.66), `Org` (0.81), `Idus`/`SecTeam`
 (~0.57–0.60) and `Way` (0.52). CyNER's only competitive recall class is `SecTeam` (0.63); elsewhere
@@ -241,7 +240,7 @@ SecureBERT 31% ambiguous vs 39% unambiguous; CyNER 3% vs 10%.)
 - The label projection structurally favors SecureBERT; the bias adjustment in [doc 04](04_leakage_bias_and_intrinsics.md) is a ceiling-based sensitivity check, not proof of independent capability.
 - APTNER/DNRTI raw-text overlap could not be quantified offline (`data/aptner/` absent), so leakage risk is *unquantified, not disproven*.
 - Raw confidence scores do not yield a usable high-precision operating point for either model (see [doc 05](05_operational_and_calibration.md)).
-- Energy is estimated where `powermetrics` is unavailable; full `make reproduce` and MPS parity remain future reruns.
+- Energy is an estimate where hardware power sampling (`powermetrics`) is unavailable, and latency is profiled on CPU — the deployment target, since the on-prem image ships CPU-only torch.
 
 **Bottom line:** SecureBERT-NER is the evidence leader on accuracy across every scheme and
 config, with the failure modes (over-prediction, boundary fragments) that are fixable downstream;

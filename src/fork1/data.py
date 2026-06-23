@@ -17,6 +17,7 @@ def clean_token(token: str) -> str:
     cleaned = "".join(ch for ch in token if unicodedata.category(ch) != "Cf")
     return cleaned or token
 
+
 DEFAULT_SPLITS = ("train", "valid", "test")
 
 

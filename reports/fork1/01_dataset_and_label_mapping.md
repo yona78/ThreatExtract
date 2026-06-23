@@ -7,9 +7,9 @@ makes a fair-as-possible comparison between two models with incompatible label s
 
 ## 1. DNRTI dataset audit
 
-The authoritative source is the user-provided DNRTI GitHub repository. The archive contains
-`train.txt`, `valid.txt`, and `test.txt` in a CoNLL-like token/tag (BIO) format. The final
-claim is computed on the **published `test.txt` split without resampling**.
+The authoritative source is the public DNRTI GitHub repository referenced in the assignment. The
+archive contains `train.txt`, `valid.txt`, and `test.txt` in a CoNLL-like token/tag (BIO) format.
+The final claim is computed on the **published `test.txt` split without resampling**.
 
 ![DNRTI test split label distribution](figures/dnrti_label_distribution.svg)
 
@@ -43,9 +43,9 @@ claim is computed on the **published `test.txt` split without resampling**.
   uses **collapsed spans** (2,348), because strict NER evaluation is span-based, not token-based.
 - The split is imbalanced: `HackOrg`, `Tool`, and `SamFile` dominate support, while `Way`,
   `Purp`, and `Features` are low but non-trivial. This is why per-label analysis is necessary.
-- Two gold tokens contain embedded zero-width joiners (e.g. `Eset‍`). The loader now strips
-  Unicode format characters (category `Cf`) at read time (`data.clean_token`), so these no longer
-  shift character offsets or force a guaranteed boundary miss.
+- Two gold tokens contain embedded zero-width joiners (e.g. `Eset‍`). The loader strips Unicode
+  format characters (category `Cf`) at read time (`data.clean_token`), so these do not shift
+  character offsets or force a guaranteed boundary miss.
 
 ### Evaluation implication
 

@@ -1,4 +1,0 @@
-{"model": "securebert", "surface_class": "ambiguous", "support": 148, "true_positive": 46, "false_positive": 79, "false_negative": 102, "precision": 0.368, "recall": 0.3108108108108108, "f1": 0.33699633699633696}
-{"model": "securebert", "surface_class": "unambiguous", "support": 2200, "true_positive": 851, "false_positive": 3031, "false_negative": 1349, "precision": 0.21921689850592477, "recall": 0.38681818181818184, "f1": 0.27984215718513644}
-{"model": "cyner", "surface_class": "ambiguous", "support": 148, "true_positive": 5, "false_positive": 35, "false_negative": 143, "precision": 0.125, "recall": 0.033783783783783786, "f1": 0.053191489361702135}
-{"model": "cyner", "surface_class": "unambiguous", "support": 2200, "true_positive": 211, "false_positive": 1564, "false_negative": 1989, "precision": 0.11887323943661972, "recall": 0.0959090909090909, "f1": 0.10616352201257861}

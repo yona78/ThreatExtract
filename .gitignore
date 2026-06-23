@@ -38,3 +38,11 @@ model_cache/
 .DS_Store
 .vscode/
 .idea/
+
+# reports/fork1: commit the consolidated reports (README + 0X_*.md) and figures only.
+# Raw machine-readable outputs are regenerable via `make reproduce`.
+reports/fork1/*.jsonl
+reports/fork1/run_metadata.json
+reports/fork1/*.md
+!reports/fork1/README.md
+!reports/fork1/0[0-9]_*.md

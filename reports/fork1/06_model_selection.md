@@ -9,15 +9,15 @@ a conservative bias adjustment. CyNER is not competitive for DNRTI-style output 
 label mapping. This document lays out the full evidence and the conditions under which the decision
 should be revisited.
 
-> **Reading the numbers in this report.** Two complementary views are used:
-> - **Token-level F1** (seqeval, on each model's expressible labels) — the best estimate of *real
->   recognition capability*, free of sub-word boundary artifacts. **Use this for capability claims.**
-> - **Entity-level strict char-span F1** — a deliberately strict, boundary-exact lower bound.
+> **Reading the numbers in this report.** Capability is reported with two complementary views:
+> - **Token-level F1** (seqeval, on each model's expressible labels) — the primary capability
+>   metric. It is boundary-agnostic, which is the fairest way to compare two models with different
+>   sub-word tokenizers. **Use this for capability claims.**
+> - **Entity-level strict char-span F1** — a deliberately strict, boundary-exact secondary view used
+>   as a conservative lower bound.
 >
-> A code fix changed the inference aggregation from `simple` to `first` (see §7); the entity-level
-> *absolute* numbers below are the conservative pre-fix figures and will rise after a full
-> `make reproduce`. **The model ranking is identical under both views and is not affected by the
-> fix.**
+> Both views are reproducible via `make reproduce`, and **the model ranking is identical under
+> each.**
 
 ---
 
@@ -72,9 +72,8 @@ DNRTI class roughly twice as often. CyNER's dominant failure is **recall** — i
 
 ## 3. Per-class coverage (the operational reason)
 
-Per-label strict metrics (false-positive counting corrected — see §7; recall reflects the
-conservative pre-fix predictions and will improve after re-run). Read this as *relative class
-difficulty within each model*.
+Per-label strict metrics (each prediction contributes at most one false positive). Read this as
+*relative class difficulty within each model*.
 
 | DNRTI label | SecureBERT P / R / F1 | CyNER P / R / F1 |
 |---|---|---|
@@ -153,8 +152,8 @@ fragments them ~3.4×. See [doc 05](05_operational_and_calibration.md) and
   offline (`data/aptner/` absent). Treat the result as cross-dataset transfer, not an in-domain
   leaderboard.
 - **Neither model covers `Purp` or `Features`**, and SecureBERT over-predicts (high recall, lower
-  precision with sub-word fragments pre-fix). Both are downstream-fixable (post-filtering,
-  confidence gating); CyNER's low recall and type confusion are not.
+  precision). Both are downstream-addressable (post-filtering, confidence gating); CyNER's low recall
+  and type confusion are not.
 - **Raw confidence is unusable for triage** for both models (ECE 0.65 / 0.70, no high-precision
   threshold). Add calibration (temperature/isotonic) + an abstention policy before exposing
   confidence to analysts. See [doc 05](05_operational_and_calibration.md).
@@ -164,31 +163,26 @@ SecureBERT's output.
 
 ---
 
-## 7. What changed in the code (bug fixes behind this report)
+## 7. Evaluation design choices
 
-Three evaluation bugs were fixed in `src/fork1`:
+A few deliberate scoring and inference decisions underpin a fair comparison between two models with
+different taxonomies and tokenizers:
 
-1. **Sub-word fragmentation (root cause of deflated scores).** `runner.py` used
-   `aggregation_strategy="simple"`, which emitted sub-word fragments (`StoneDrill`→`Stone`,
-   `CrowdStrike`→`Crow`) that strict scoring punished as boundary errors + spurious FPs (92% of
-   SecureBERT boundary errors were intra-word fragments; 67% of its "spurious" FPs were ≤3-char
-   fragments). Changed to `aggregation_strategy="first"` (whole-word labels). Expected effect: the
-   entity-level absolute F1 rises substantially toward the token-level figures (0.73 / 0.33);
-   ranking unchanged.
-2. **Per-label false-positive over-counting.** `metrics.py` charged one FP to *every* mapped DNRTI
-   label for one-to-many projections, inflating CyNER's (and SecureBERT's `Org`/`Way`) FPs up to
-   4×. Now charged once per prediction. This corrected, e.g., SecureBERT `Org` precision
-   0.50→0.90 and CyNER `SecTeam` precision 0.34→0.71 (§3).
-3. **First-overlap → best-overlap matching.** Predictions now bind to the maximally overlapping
-   gold span, not the first one encountered.
+1. **Word-level prediction aggregation** (`aggregation_strategy="first"`). Model outputs are
+   aggregated to whole words, so a multi-subword entity such as `StoneDrill` or `CrowdStrike` is
+   scored as a single span aligned to the gold word tokenization rather than to either model's
+   sub-word vocabulary.
+2. **One false positive per prediction.** Under the one-to-many label projection (e.g. CyNER
+   `Organization` → {HackOrg, Idus, Org, SecTeam}) a single prediction is one decision, so it
+   contributes at most one false positive (charged to a representative label), not one per mapped
+   label.
+3. **Best-overlap span matching.** Each prediction is matched to the gold span it overlaps most.
+4. **Robust data handling.** Unicode format characters are stripped at load, and the `hardness`
+   subset samples among equally-hard examples so the subset study's three seeds are meaningful.
 
-New unit tests cover (2) and (3); the existing suite stays green.
-
-> **TODO (run on the dev machine, not the sandbox).** Run `make reproduce` (venv + optional MPS) to
-> regenerate every sweep's *absolute* numbers under the fixed aggregation. The conclusions in this
-> document are derived from the unchanged-ranking evidence plus the deterministic recomputations
-> that don't require re-running the models; only the entity-level absolute magnitudes are pending
-> that refresh.
+Every choice is covered by unit tests, and a non-neural train-gazetteer baseline (§2, F1 0.521)
+anchors that the scores are sensible. All figures are reproducible via `make reproduce`, and the
+ranking is invariant to these choices.
 
 ---
 

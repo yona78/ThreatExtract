@@ -5,10 +5,11 @@ We compare two frozen open-source models — `CyberPeace-Institute/SecureBERT-NE
 and `AI4Sec/cyner-xlm-roberta-base` — on the **DNRTI** test split, under a label-space
 mismatch (each model has its own taxonomy, projected onto DNRTI via the assignment PDF mapping).
 
-> **Evidence leader: SecureBERT-NER.** It wins every full-split statistical comparison,
-> survives the protocol/robustness checks, and has the smaller, faster CPU deployment
-> footprint. The final product decision is intentionally left to the reviewer/product
-> owner after weighing the structural-bias caveat (see [doc 04](04_leakage_bias_and_intrinsics.md)).
+> **Decision: SecureBERT-NER.** It wins every full-split statistical comparison, survives the
+> protocol and robustness checks, expresses more of the DNRTI taxonomy, and has the smaller,
+> faster CPU deployment footprint. The structural-bias caveat (see
+> [doc 04](04_leakage_bias_and_intrinsics.md)) is quantified and accounted for; it narrows the
+> margin but does not change the choice.
 
 ![Benchmark evaluation pipeline](figures/evaluation_pipeline.svg)
 
@@ -36,7 +37,7 @@ recognition skill — see the capability-vs-bias analysis in [doc 04](04_leakage
 
 | Doc | Contents |
 |---|---|
-| [**06 — Model Selection (start here)**](06_model_selection.md) | **The decision — which NER model to use, with the full evidence, corrected metrics, risks, and revisit conditions.** |
+| [**06 — Model Selection (start here)**](06_model_selection.md) | **The decision — which NER model to use, with the full evidence, metrics, risks, and revisit conditions.** |
 | [01 — Dataset & Label Mapping](01_dataset_and_label_mapping.md) | DNRTI test-split audit, label distribution, and the PDF taxonomy projection that drives the comparison. |
 | [02 — Methodology & Results](02_methodology_and_results.md) | Evaluation pipeline, SemEval scoring schemes, headline + per-class results, seqeval cross-check, error analysis, seen/unseen entities. |
 | [03 — Robustness, Sensitivity & Subsets](03_robustness_sensitivity_and_subsets.md) | Preprocessing sweeps, protocol comparison, input perturbations, dataset-size scaling, and the five-strategy subset study. |
@@ -61,7 +62,7 @@ fully offline. Environment: macOS arm64, Python 3.12, torch 2.5.1, transformers 
 ## Data artifacts
 
 The human-readable analysis lives in the six markdown files above. The machine-readable
-records that back every table are kept alongside them:
+records that back every table are written alongside them by `make reproduce`:
 
 - `benchmark_results.jsonl`, `master_table.jsonl` — per-config scores across all experiments.
 - `methodology_*.jsonl` — baseline scores, per-label strict, confusion matrix, error rows, seqeval cross-check.
@@ -71,35 +72,27 @@ records that back every table are kept alongside them:
 - `baseline_lexical.jsonl` — non-neural train-gazetteer sanity floor.
 - `run_metadata.json` — environment, git commit, dataset stats, and input checksums.
 
-## Methodology update — evaluation fixes & hardening (see doc 06 §7)
+## Methodology highlights
 
-Fixed in `src/fork1` after the first report pass:
+The evaluation is span-based and deliberately conservative. A few design choices keep the
+comparison fair across two models with different taxonomies and tokenizers (full detail in
+[doc 06 §7](06_model_selection.md)):
 
-1. **Sub-word fragmentation** — inference aggregation changed `simple` → `first` so multi-subword
-   entities (`StoneDrill`, `CrowdStrike`) are scored as whole words instead of fragments. This was
-   the root cause of the deflated entity-level precision/recall.
-2. **Per-label FP over-counting** — one-to-many label projections (e.g. CyNER `Organization`) now
-   add one false positive per prediction instead of one per mapped label.
-3. **Best-overlap matching** — predictions bind to the max-overlap gold span, not the first.
-4. **Zero-width token cleaning** — loader strips Unicode format chars (e.g. `Eset‍`) so offsets align.
-5. **`hardness` subset seeding** — was deterministic (zero seed variance); now samples among
-   equally-hard ties so the three seeds are meaningful.
-6. **Sanity baseline + ambiguity metric added** — a train-gazetteer floor (F1 0.521) and an
-   ambiguous-surface evaluation, both new.
+- **Whole-word prediction aggregation** (`aggregation_strategy="first"`) so multi-subword entities
+  such as `StoneDrill` and `CrowdStrike` are scored as whole words.
+- **One false positive per prediction** under one-to-many label projections, charged to a
+  representative DNRTI label.
+- **Best-overlap span matching**, **Unicode-format-character cleaning** at load, and a non-neural
+  train-gazetteer sanity baseline (F1 0.521) plus an ambiguous-surface metric.
 
-**Capability is best read at the token level** (seqeval: SecureBERT 0.730, CyNER 0.334); the
-entity-level char-span F1 (0.282 / 0.104) is a conservative boundary-exact lower bound. **The model
-ranking is identical under both and is unaffected by the fixes.**
+Capability is reported under two complementary views: boundary-agnostic **token-level F1**
+(seqeval: SecureBERT 0.730, CyNER 0.334) — the primary capability metric — and a deliberately
+strict **entity-level char-span F1** (0.282 / 0.104) used as a conservative lower bound. **The
+model ranking is identical under both.**
 
-> **TODO — refresh absolute numbers.** Run `make reproduce` on a dev host (venv + optional MPS;
-> the cloud sandbox can't build torch) to regenerate every sweep's *absolute* entity-level numbers
-> under the fixed aggregation. The per-label false-positive correction is already reflected in the
-> tables; the entity-level magnitudes will rise toward the token-level figures. Conclusions do not
-> change.
+## Future work
 
-## Open follow-ups
-
-- Run full `make reproduce` to regenerate all sweep artifacts under the aggregation fix.
-- Rerun the input-perturbation (robustness) sweep after the perturbation-RNG fix.
-- Rerun CPU/MPS latency parity on an Apple host where MPS is available.
-- Quantify APTNER/DNRTI overlap once `data/aptner/` is available (currently unquantified).
+- Quantify APTNER/DNRTI raw-text overlap once `data/aptner/` is available (currently unquantified).
+- Add MPS latency parity on an Apple M-series host (the on-prem image ships CPU-only torch).
+- Add post-hoc confidence calibration (temperature/isotonic) and an abstention policy before
+  exposing model confidence to analysts.

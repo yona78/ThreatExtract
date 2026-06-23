@@ -10,6 +10,7 @@ from pathlib import Path
 from statistics import mean, variance
 
 from fork1.align import align_pred_to_tokens
+from fork1.baseline import lexical_baseline_row
 from fork1.calibration import entity_records, expected_calibration_error, threshold_sweep
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, extract_bio_spans, load_dnrti_dataset
@@ -21,7 +22,6 @@ from fork1.intrinsic import (
     tokenizer_fertility,
 )
 from fork1.mapping import map_model_label_to_dnrti, strip_bio, unique_mapped_dnrti_labels
-from fork1.baseline import lexical_baseline_row
 from fork1.metrics import (
     ambiguity_rows,
     bootstrap_count_gap_ci,

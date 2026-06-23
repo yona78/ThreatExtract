@@ -1,1 +1,0 @@
-{"baseline": "train_gazetteer", "gazetteer_surfaces": 4750, "true_positive": 1849, "predicted": 4749, "gold": 2348, "precision": 0.38934512528953463, "recall": 0.7874787052810903, "f1": 0.5210652388333099}

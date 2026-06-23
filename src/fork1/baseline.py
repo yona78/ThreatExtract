@@ -46,8 +46,14 @@ def predict_lexical(sample: Sample, gazetteer: dict[str, str]) -> list[Span]:
                 start = offsets[i][0]
                 end = offsets[i + span_len - 1][1]
                 spans.append(
-                    Span(label=label, start=start, end=end, text=sample.text[start:end],
-                         score=1.0, source="lexical")
+                    Span(
+                        label=label,
+                        start=start,
+                        end=end,
+                        text=sample.text[start:end],
+                        score=1.0,
+                        source="lexical",
+                    )
                 )
                 i += span_len
                 matched = True
@@ -57,7 +63,9 @@ def predict_lexical(sample: Sample, gazetteer: dict[str, str]) -> list[Span]:
     return spans
 
 
-def score_exact(samples: list[Sample], preds_by_id: dict[str, list[Span]]) -> dict[str, float | int]:
+def score_exact(
+    samples: list[Sample], preds_by_id: dict[str, list[Span]]
+) -> dict[str, float | int]:
     """Exact span+label P/R/F1 (no taxonomy mapping; labels are already DNRTI)."""
     tp = pred_total = gold_total = 0
     for sample in samples:
@@ -79,7 +87,9 @@ def score_exact(samples: list[Sample], preds_by_id: dict[str, list[Span]]) -> di
     }
 
 
-def lexical_baseline_row(train_samples: list[Sample], test_samples: list[Sample]) -> dict[str, object]:
+def lexical_baseline_row(
+    train_samples: list[Sample], test_samples: list[Sample]
+) -> dict[str, object]:
     """Train-gazetteer baseline evaluated on the test split."""
     gazetteer = build_gazetteer(train_samples)
     preds = {sample.sample_id: predict_lexical(sample, gazetteer) for sample in test_samples}
