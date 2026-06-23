@@ -1,0 +1,14 @@
+Threat Intelligence Report — 2024-03-15
+
+On 2024-03-15, the APT29 group (also known as Cozy Bear) launched a spear-phishing
+campaign against several government agencies. The threat actors deployed the
+WellMess malware and the SUNBURST backdoor to establish persistence.
+
+Command-and-control traffic was observed to the domain evil-c2.example.com and to
+the IP address 203.0.113.42. The attackers exploited CVE-2021-44228 (Log4Shell) in
+vulnerable Apache Log4j servers to gain initial access.
+
+Indicators of compromise include the file hash 5d41402abc4b2a76b9719d911017c592
+and the malicious URL http://malicious.example.net/payload.exe. The SecTeam at
+CERT-EU attributed the activity to the SVR and recommended verification with the
+Nmap and Wireshark tools.
