@@ -3,18 +3,25 @@ import subprocess
 import sys
 
 import fork1.run_experiment as run_experiment
+import pytest
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, Span
 from fork1.run_experiment import (
     apply_alignment_policy,
+    bio_tags_from_label_sets,
     iter_preprocessing_sweep_configs,
+    iter_protocol_configs,
     iter_subset_study_configs,
     min_faithful_subset_by_strategy,
+    mapping_coverage_for_model,
     prepare_samples_for_config,
     predict_samples,
+    run_protocol_comparison,
     run_subset_study,
+    seqeval_cross_check,
     subset_rows_from_predictions,
     summarize_subset_cells,
+    write_protocol_comparison_report,
     write_robustness_report,
     write_subset_study_report,
     write_preprocessing_tornado,
@@ -66,6 +73,15 @@ def test_subset_study_configs_cover_strategy_size_seed_grid() -> None:
     }
     assert all(config.detok == "single_space" for config in configs)
     assert all(config.alignment == "overlap" for config in configs)
+
+
+def test_protocol_configs_compare_pdf_mapping_and_paper_native() -> None:
+    configs = list(iter_protocol_configs())
+
+    assert [config.name for config in configs] == ["pdf_mapping", "paper_native"]
+    assert configs[0].detok == "single_space"
+    assert configs[1].detok == "punct_aware"
+    assert configs[1].max_length == 128
 
 
 def test_prepare_samples_rebuilds_text_offsets_for_config_detok() -> None:
@@ -175,6 +191,76 @@ def test_subset_rows_from_predictions_scores_selected_samples_only() -> None:
     assert {row["samples"] for row in rows} == {2}
     assert all(row["subset_strategy"] == "random" for row in rows)
     assert all(row["subset_size"] == "2" for row in rows)
+
+
+def test_bio_tags_from_label_sets_emits_b_i_boundaries() -> None:
+    tags = bio_tags_from_label_sets(
+        [
+            {"HackOrg"},
+            {"HackOrg"},
+            set(),
+            {"Tool"},
+            {"Tool", "Exp"},
+            {"Tool"},
+        ]
+    )
+
+    assert tags == ["B-HackOrg", "I-HackOrg", "O", "B-Tool", "O", "B-Tool"]
+
+
+def test_mapping_coverage_counts_unique_label_subset() -> None:
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="APT action",
+            tokens=("APT", "action"),
+            tags=("B-HackOrg", "B-Way"),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold"),
+                Span(label="Way", start=4, end=10, text="action", score=None, source="gold"),
+            ],
+        )
+    ]
+
+    coverage = mapping_coverage_for_model(samples, "securebert")
+
+    assert coverage["total_gold_spans"] == 2
+    assert coverage["unique_gold_spans"] == 1
+    assert coverage["non_unique_gold_spans"] == 1
+    assert coverage["non_unique_labels"] == {"Way": 1}
+
+
+def test_seqeval_cross_check_matches_strict_on_unique_labels() -> None:
+    pytest.importorskip("seqeval")
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="APT",
+            tokens=("APT",),
+            tags=("B-HackOrg",),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
+            ],
+        )
+    ]
+    predictions = {
+        "test-0": [Span(label="APT", start=0, end=3, text="APT", score=0.9, source="securebert")]
+    }
+
+    check = seqeval_cross_check(
+        samples,
+        predictions,
+        "securebert",
+        ExperimentConfig(name="pdf_mapping", bootstrap=0),
+    )
+
+    assert check["our_f1"] == 1.0
+    assert check["seqeval_f1"] == 1.0
+    assert check["delta"] == 0.0
 
 
 class FakeRunner:
@@ -395,6 +481,54 @@ def test_write_subset_study_report_includes_summary_and_min_faithful(
     assert "min-faithful subset" in text
 
 
+def test_write_protocol_comparison_report_includes_rows_checks_and_coverage(
+    tmp_path: Path,
+) -> None:
+    rows = [
+        {
+            "protocol": "pdf_mapping",
+            "model": "securebert",
+            "strict_f1": 0.28,
+            "gap_vs_other": 0.17,
+            "ci_low": 0.10,
+            "ci_high": 0.20,
+            "flip": False,
+        }
+    ]
+    checks = [
+        {
+            "protocol": "pdf_mapping",
+            "model": "securebert",
+            "our_f1": 1.0,
+            "seqeval_f1": 1.0,
+            "delta": 0.0,
+            "unique_gold_spans": 1,
+        }
+    ]
+    coverage = [
+        {
+            "model": "securebert",
+            "total_gold_spans": 2,
+            "unique_gold_spans": 1,
+            "non_unique_gold_spans": 1,
+            "coverage": 0.5,
+            "non_unique_labels": {"Way": 1},
+        }
+    ]
+
+    write_protocol_comparison_report(
+        tmp_path / "protocol_comparison.md",
+        rows,
+        checks,
+        coverage,
+    )
+
+    text = (tmp_path / "protocol_comparison.md").read_text(encoding="utf-8")
+    assert "| Protocol | Model | Strict F1 | Gap | 95% CI | Flip? |" in text
+    assert "Seqeval Cross-Check" in text
+    assert "Unique-Label Coverage" in text
+
+
 def test_run_subset_study_reuses_full_predictions(monkeypatch, tmp_path: Path) -> None:
     samples = [
         Sample(
@@ -464,6 +598,95 @@ def test_run_subset_study_reuses_full_predictions(monkeypatch, tmp_path: Path) -
     assert (tmp_path / "reports" / "figures" / "subset_random.svg").is_file()
 
 
+def test_run_protocol_comparison_writes_report_and_jsonl(monkeypatch, tmp_path: Path) -> None:
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="APT",
+            tokens=("APT",),
+            tags=("B-HackOrg",),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
+            ],
+        )
+    ]
+    predictions = {
+        "securebert": {
+            "test-0": [
+                Span(label="APT", start=0, end=3, text="APT", score=0.9, source="securebert")
+            ]
+        },
+        "cyner": {"test-0": []},
+    }
+    rows = [
+        {
+            "config": "pdf_mapping",
+            "model": "securebert",
+            "scheme": "strict",
+            "strict_f1": 1.0,
+            "gap_vs_other": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "mcnemar_stat": 0.0,
+            "mcnemar_p": 1.0,
+            "flip": False,
+        },
+        {
+            "config": "pdf_mapping",
+            "model": "cyner",
+            "scheme": "strict",
+            "strict_f1": 0.0,
+            "gap_vs_other": -1.0,
+            "ci_low": -1.0,
+            "ci_high": -1.0,
+            "mcnemar_stat": 0.0,
+            "mcnemar_p": 1.0,
+            "flip": False,
+        },
+    ]
+
+    def fake_load_dnrti_dataset(dnrti_dir, split):
+        return samples, [], []
+
+    def fake_run_config_with_predictions(config, samples_arg, *, device, offline, cache_dir):
+        return samples_arg, predictions, rows
+
+    monkeypatch.setattr(run_experiment, "load_dnrti_dataset", fake_load_dnrti_dataset)
+    monkeypatch.setattr(
+        run_experiment,
+        "run_config_with_predictions",
+        fake_run_config_with_predictions,
+    )
+    monkeypatch.setattr(
+        run_experiment,
+        "seqeval_cross_check",
+        lambda prepared, preds, model, config: {
+            "protocol": config.name,
+            "model": model,
+            "our_f1": 1.0,
+            "seqeval_f1": 1.0,
+            "delta": 0.0,
+            "unique_gold_spans": 1,
+        },
+    )
+
+    out = run_protocol_comparison(
+        dnrti_dir=tmp_path / "dnrti",
+        out_dir=tmp_path / "reports",
+        device="mps",
+        offline=True,
+        cache_dir=tmp_path / "cache",
+        bootstrap=0,
+    )
+
+    assert out
+    assert (tmp_path / "reports" / "protocol_comparison.jsonl").is_file()
+    assert (tmp_path / "reports" / "protocol_seqeval_crosscheck.jsonl").is_file()
+    assert (tmp_path / "reports" / "protocol_comparison.md").is_file()
+
+
 def test_run_experiment_module_help_works_from_repo_root() -> None:
     root = Path(__file__).resolve().parents[2]
 
@@ -478,3 +701,4 @@ def test_run_experiment_module_help_works_from_repo_root() -> None:
     assert result.returncode == 0, result.stderr
     assert "--sweep" in result.stdout
     assert "subset" in result.stdout
+    assert "protocol" in result.stdout

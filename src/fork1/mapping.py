@@ -64,3 +64,14 @@ def map_model_label_to_dnrti(model_name: str, label: str) -> set[str]:
     if normalized_model.startswith("cyner"):
         return set(CYNER_TO_DNRTI.get(clean, set()))
     raise ValueError(f"unknown model for label mapping: {model_name}")
+
+
+def unique_mapped_dnrti_labels(model_name: str) -> set[str]:
+    normalized_model = model_name.lower()
+    if normalized_model.startswith("securebert"):
+        mapping = SECUREBERT_TO_DNRTI
+    elif normalized_model.startswith("cyner"):
+        mapping = CYNER_TO_DNRTI
+    else:
+        raise ValueError(f"unknown model for label mapping: {model_name}")
+    return {next(iter(labels)) for labels in mapping.values() if len(labels) == 1}

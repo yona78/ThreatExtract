@@ -3,13 +3,15 @@ from __future__ import annotations
 import argparse
 import html
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import replace
 from pathlib import Path
 from statistics import mean, variance
 
+from fork1.align import align_pred_to_tokens
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, extract_bio_spans, load_dnrti_dataset
+from fork1.mapping import map_model_label_to_dnrti, strip_bio, unique_mapped_dnrti_labels
 from fork1.metrics import (
     bootstrap_count_gap_ci,
     bootstrap_gap_ci,
@@ -58,6 +60,11 @@ def iter_subset_study_configs(base: ExperimentConfig = PRESETS["pdf_mapping"]):
                     subset_size=size,
                     seed=seed,
                 )
+
+
+def iter_protocol_configs():
+    yield PRESETS["pdf_mapping"]
+    yield PRESETS["paper_native"]
 
 
 def prepare_samples_for_config(samples: list[Sample], config: ExperimentConfig) -> list[Sample]:
@@ -614,6 +621,200 @@ def _subset_size_sort_key(size: str) -> int:
     return 10**9 if size == "all" else int(size)
 
 
+def bio_tags_from_label_sets(label_sets: list[set[str]]) -> list[str]:
+    tags = []
+    previous_label = None
+    for labels in label_sets:
+        if len(labels) != 1:
+            tags.append("O")
+            previous_label = None
+            continue
+        label = next(iter(labels))
+        prefix = "I" if label == previous_label else "B"
+        tags.append(f"{prefix}-{label}")
+        previous_label = label
+    return tags
+
+
+def _gold_bio_for_unique_labels(sample: Sample, unique_labels: set[str]) -> list[str]:
+    label_sets = []
+    for tag in sample.tags:
+        label = strip_bio(tag)
+        label_sets.append({label} if tag != "O" and label in unique_labels else set())
+    return bio_tags_from_label_sets(label_sets)
+
+
+def _pred_bio_for_unique_labels(
+    sample: Sample,
+    pred_spans,
+    model_name: str,
+    config: ExperimentConfig,
+    unique_labels: set[str],
+) -> list[str]:
+    _text, offsets = DETOKENIZERS[config.detok](list(sample.tokens))
+    aligned = align_pred_to_tokens(offsets, pred_spans, model_name, config.alignment)
+    return bio_tags_from_label_sets([labels & unique_labels for labels in aligned])
+
+
+def _filter_samples_to_unique_labels(
+    samples: list[Sample],
+    unique_labels: set[str],
+) -> list[Sample]:
+    return [
+        replace(
+            sample,
+            gold_spans=[span for span in sample.gold_spans if span.label in unique_labels],
+        )
+        for sample in samples
+    ]
+
+
+def _filter_predictions_to_unique_labels(predictions: dict[str, list], model_name: str):
+    return {
+        sample_id: [
+            span for span in spans if len(map_model_label_to_dnrti(model_name, span.label)) == 1
+        ]
+        for sample_id, spans in predictions.items()
+    }
+
+
+def mapping_coverage_for_model(samples: list[Sample], model_name: str) -> dict[str, object]:
+    unique_labels = unique_mapped_dnrti_labels(model_name)
+    counts = Counter(span.label for sample in samples for span in sample.gold_spans)
+    unique_count = sum(count for label, count in counts.items() if label in unique_labels)
+    total = sum(counts.values())
+    non_unique_labels = {
+        label: count for label, count in sorted(counts.items()) if label not in unique_labels
+    }
+    return {
+        "model": model_name,
+        "total_gold_spans": total,
+        "unique_gold_spans": unique_count,
+        "non_unique_gold_spans": total - unique_count,
+        "coverage": unique_count / total if total else 0.0,
+        "unique_labels": sorted(unique_labels),
+        "non_unique_labels": non_unique_labels,
+    }
+
+
+def seqeval_cross_check(
+    samples: list[Sample],
+    predictions: dict[str, list],
+    model_name: str,
+    config: ExperimentConfig,
+) -> dict[str, object]:
+    from seqeval.metrics import f1_score as seqeval_f1_score
+    from seqeval.scheme import IOB2
+
+    unique_labels = unique_mapped_dnrti_labels(model_name)
+    filtered_samples = _filter_samples_to_unique_labels(samples, unique_labels)
+    filtered_predictions = _filter_predictions_to_unique_labels(predictions, model_name)
+    our_f1 = corpus_f1(
+        filtered_samples,
+        filtered_predictions,
+        model_name,
+        config.scheme,
+    )
+    gold_bio = [_gold_bio_for_unique_labels(sample, unique_labels) for sample in samples]
+    pred_bio = [
+        _pred_bio_for_unique_labels(
+            sample,
+            filtered_predictions.get(sample.sample_id, []),
+            model_name,
+            config,
+            unique_labels,
+        )
+        for sample in samples
+    ]
+    seqeval_f1 = float(seqeval_f1_score(gold_bio, pred_bio, mode="strict", scheme=IOB2))
+    unique_gold_spans = sum(len(sample.gold_spans) for sample in filtered_samples)
+    return {
+        "protocol": config.name,
+        "model": model_name,
+        "our_f1": our_f1,
+        "seqeval_f1": seqeval_f1,
+        "delta": abs(our_f1 - seqeval_f1),
+        "unique_gold_spans": unique_gold_spans,
+        "unique_labels": sorted(unique_labels),
+    }
+
+
+def write_protocol_comparison_report(
+    path: Path,
+    rows: list[dict[str, object]],
+    checks: list[dict[str, object]],
+    coverage: list[dict[str, object]],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Protocol Comparison",
+        "",
+        "| Protocol | Model | Strict F1 | Gap | 95% CI | Flip? |",
+        "|---|---|---:|---:|---|---|",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['protocol']} | {row['model']} | {float(row['strict_f1']):.4f} | "
+            f"{float(row['gap_vs_other']):.4f} | "
+            f"[{float(row['ci_low']):.4f}, {float(row['ci_high']):.4f}] | "
+            f"{'yes' if row['flip'] else 'no'} |"
+        )
+
+    securebert_gaps = {
+        str(row["protocol"]): float(row["gap_vs_other"])
+        for row in rows
+        if row["model"] == "securebert"
+    }
+    if {"pdf_mapping", "paper_native"} <= set(securebert_gaps):
+        movement = securebert_gaps["paper_native"] - securebert_gaps["pdf_mapping"]
+        lines.extend(
+            [
+                "",
+                "## Gap Movement",
+                "",
+                f"SecureBERT gap movement from PDF-mapping to paper-native: {movement:.4f}.",
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Seqeval Cross-Check",
+            "",
+            "| Protocol | Model | Our unique-label F1 | Seqeval F1 | Delta | Unique gold spans |",
+            "|---|---|---:|---:|---:|---:|",
+        ]
+    )
+    for check in checks:
+        lines.append(
+            f"| {check['protocol']} | {check['model']} | {float(check['our_f1']):.4f} | "
+            f"{float(check['seqeval_f1']):.4f} | {float(check['delta']):.4f} | "
+            f"{int(check['unique_gold_spans'])} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Unique-Label Coverage",
+            "",
+            "| Model | Total gold spans | Unique-label spans | Non-unique spans | Coverage | Non-unique labels |",
+            "|---|---:|---:|---:|---:|---|",
+        ]
+    )
+    for item in coverage:
+        non_unique = ", ".join(
+            f"{label}:{count}" for label, count in item["non_unique_labels"].items()
+        )
+        lines.append(
+            f"| {item['model']} | {int(item['total_gold_spans'])} | "
+            f"{int(item['unique_gold_spans'])} | {int(item['non_unique_gold_spans'])} | "
+            f"{float(item['coverage']):.4f} | {non_unique} |"
+        )
+
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def write_robustness_report(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -846,11 +1047,59 @@ def run_subset_study(
     return rows
 
 
+def run_protocol_comparison(
+    *,
+    dnrti_dir: Path,
+    out_dir: Path,
+    device: str,
+    offline: bool,
+    cache_dir: Path | None,
+    bootstrap: int | None = None,
+) -> list[dict[str, object]]:
+    samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    rows: list[dict[str, object]] = []
+    checks: list[dict[str, object]] = []
+    configs = list(iter_protocol_configs())
+    if bootstrap is not None:
+        configs = [replace(config, bootstrap=bootstrap) for config in configs]
+
+    for config in configs:
+        prepared, predictions, config_rows = run_config_with_predictions(
+            config,
+            samples,
+            device=device,
+            offline=offline,
+            cache_dir=cache_dir,
+        )
+        for row in config_rows:
+            enriched = dict(row)
+            enriched["protocol"] = config.name
+            rows.append(enriched)
+        for model_name in config.models:
+            checks.append(
+                seqeval_cross_check(
+                    prepared,
+                    predictions[model_name],
+                    model_name,
+                    config,
+                )
+            )
+
+    coverage = [
+        mapping_coverage_for_model(samples, model) for model in PRESETS["pdf_mapping"].models
+    ]
+    write_jsonl(out_dir / "protocol_comparison.jsonl", rows)
+    write_jsonl(out_dir / "protocol_seqeval_crosscheck.jsonl", checks)
+    write_jsonl(out_dir / "protocol_unique_label_coverage.jsonl", coverage)
+    write_protocol_comparison_report(out_dir / "protocol_comparison.md", rows, checks, coverage)
+    return rows
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Fork 1 experiments.")
     parser.add_argument(
         "--sweep",
-        choices=["preprocessing", "subset", "robustness"],
+        choices=["preprocessing", "subset", "protocol", "robustness"],
         required=True,
     )
     parser.add_argument("--dnrti-dir", type=Path, default=Path("data/dnrti"))
@@ -872,6 +1121,15 @@ def main(argv: list[str] | None = None) -> int:
         )
     elif args.sweep == "subset":
         run_subset_study(
+            dnrti_dir=args.dnrti_dir,
+            out_dir=args.out_dir,
+            device=args.device,
+            offline=args.offline,
+            cache_dir=args.cache_dir,
+            bootstrap=args.bootstrap,
+        )
+    elif args.sweep == "protocol":
+        run_protocol_comparison(
             dnrti_dir=args.dnrti_dir,
             out_dir=args.out_dir,
             device=args.device,
