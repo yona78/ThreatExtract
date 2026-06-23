@@ -21,6 +21,10 @@ def _overlap(left, right) -> bool:
     return max(left.start, right.start) < min(left.end, right.end)
 
 
+def _overlap_amount(left, right) -> int:
+    return max(0, min(left.end, right.end) - max(left.start, right.start))
+
+
 def _exact(left, right) -> bool:
     return left.start == right.start and left.end == right.end
 
@@ -44,11 +48,14 @@ def muc_counts(gold_spans, pred_spans, model_name: str) -> dict[str, MucCounts]:
         used_gold: set[int] = set()
         for pred in ordered_preds:
             best = None
+            best_overlap = 0
             for gold_index, gold in enumerate(gold_spans):
-                if gold_index in used_gold or not _overlap(gold, pred):
+                if gold_index in used_gold:
                     continue
-                best = (gold_index, gold)
-                break
+                amount = _overlap_amount(gold, pred)
+                if amount > best_overlap:
+                    best_overlap = amount
+                    best = (gold_index, gold)
 
             if best is None:
                 counts.spu += 1
@@ -251,11 +258,14 @@ def _matched_error_records_for_sample(
 
     for pred_index, pred in ordered_preds:
         best = None
+        best_overlap = 0
         for gold_index, gold in enumerate(sample.gold_spans):
-            if gold_index in used_gold or not _overlap(gold, pred):
+            if gold_index in used_gold:
                 continue
-            best = (gold_index, gold)
-            break
+            amount = _overlap_amount(gold, pred)
+            if amount > best_overlap:
+                best_overlap = amount
+                best = (gold_index, gold)
 
         if best is None:
             continue
@@ -376,15 +386,24 @@ def per_label_strict_rows(samples, preds, model_name: str) -> list[dict[str, obj
         bucket = row["bucket"]
         gold_label = str(row["gold_label"])
         predicted_labels = _predicted_labels_for_counts(str(row["predicted_label"]))
+        # A single prediction must contribute at most one false positive. For a
+        # one-to-many model->DNRTI projection (e.g. CyNER "Organization" ->
+        # {HackOrg, Idus, Org, SecTeam}) the prediction is one decision, so it is
+        # charged once to a representative (first sorted) mapped label instead of
+        # once per mapped label, which previously over-counted CyNER FPs ~4x and
+        # understated its per-label precision.
+        fp_label = predicted_labels[0] if predicted_labels else None
         if bucket == "strict_correct":
             true_positive[gold_label] += 1
         elif bucket == "strict_drop_fn":
             false_negative[gold_label] += 1
         elif bucket in {"type_error", "boundary_error"}:
             false_negative[gold_label] += 1
-            false_positive.update(predicted_labels)
+            if fp_label is not None:
+                false_positive[fp_label] += 1
         elif bucket == "spurious_fp":
-            false_positive.update(predicted_labels)
+            if fp_label is not None:
+                false_positive[fp_label] += 1
 
     labels = sorted(DNRTI_LABELS | set(true_positive) | set(false_positive) | set(false_negative))
     out = []

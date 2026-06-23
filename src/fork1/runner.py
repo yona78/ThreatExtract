@@ -129,11 +129,17 @@ class HfTokenClassificationRunner:
         self.model.to(self.device)
         self.model.eval()
         pipeline_device = self.device if str(self.device) != "cpu" else -1
+        # Word-level aggregation. "first" assigns each whole word the label of its
+        # first sub-token, so multi-subword entities (e.g. "StoneDrill", "CrowdStrike")
+        # are emitted as a single span instead of being fragmented into pieces like
+        # "Stone"/"Crow". "simple" only merges *consecutive same-label* sub-tokens and
+        # therefore splits words whenever sub-token predictions disagree, which crushed
+        # strict precision/recall and inflated spurious-fragment false positives.
         self.pipe = pipeline(
             "token-classification",
             model=self.model,
             tokenizer=self.tokenizer,
-            aggregation_strategy="simple",
+            aggregation_strategy="first",
             device=pipeline_device,
         )
         elapsed = time.perf_counter() - start

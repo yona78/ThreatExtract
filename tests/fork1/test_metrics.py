@@ -257,6 +257,32 @@ def test_per_label_strict_rows_report_projection_aware_prf() -> None:
     assert by_label["Area"]["false_positive"] == 1
 
 
+def test_per_label_strict_rows_charge_one_fp_for_one_to_many_projection() -> None:
+    # A single spurious CyNER "Organization" prediction maps to four DNRTI labels
+    # ({HackOrg, Idus, Org, SecTeam}) but is one decision: it must add exactly one
+    # false positive in total, not one per mapped label.
+    samples = [_sample("test-0", [], text="Foo bar")]
+    preds = {"test-0": [_p(0, 3, "Organization", text="Foo")]}
+
+    rows = per_label_strict_rows(samples, preds, "cyner")
+    total_fp = sum(row["false_positive"] for row in rows)
+
+    assert total_fp == 1
+
+
+def test_muc_matches_best_overlap_gold_not_first() -> None:
+    # Prediction overlaps the first gold span by 1 char and the second by 6 chars.
+    # Best-overlap matching must bind it to the second (Tool) span, so the type
+    # scheme scores it correct (MAL -> Tool). First-overlap matching would bind it
+    # to HackOrg and mis-score the type.
+    gold = [_g(0, 6, "HackOrg"), _g(6, 12, "Tool")]
+    pred = [_p(5, 12, "MAL")]
+
+    out = score(gold, pred, "securebert")
+
+    assert out["type"]["cor"] == 1
+
+
 def test_oov_entity_rows_split_seen_and_unseen_surfaces() -> None:
     train = [
         _sample("train-0", [_g(0, 3, "HackOrg", "APT")], text="APT"),
