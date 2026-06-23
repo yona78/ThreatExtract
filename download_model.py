@@ -27,15 +27,26 @@ from pathlib import Path
 
 DEFAULT_MODEL = "CyberPeace-Institute/SecureBERT-NER"
 
-# Non-PyTorch weight formats we never need — skipping them keeps the cache lean
-# while staying model-agnostic for any PyTorch token-classification model.
+# Files we never need to *run inference*, so skipping them keeps the download
+# (and the Docker image that bakes it in) lean while staying model-agnostic for
+# any PyTorch token-classification model:
+#   * non-PyTorch weight formats (TF / Flax / ONNX / TFLite); and
+#   * training-checkpoint artifacts (optimizer / scheduler / RNG / trainer state)
+#     that some repos — including SecureBERT-NER — ship next to the weights.
 _BASE_IGNORE_PATTERNS = [
+    # Non-PyTorch weight formats.
     "*.h5",
     "*.msgpack",
     "*.onnx",
     "tf_model.*",
     "flax_model.*",
     "*.tflite",
+    # Training-checkpoint artifacts (never used at inference time).
+    "optimizer.pt",
+    "scheduler.pt",
+    "rng_state*.pth",
+    "trainer_state.json",
+    "training_args.bin",
 ]
 
 

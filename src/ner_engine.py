@@ -50,6 +50,15 @@ def strip_bio(label: str) -> str:
     return label
 
 
+def _trim_span(text: str, start: int, end: int) -> tuple[int, int]:
+    """Shrink ``[start, end)`` inward past any leading/trailing whitespace."""
+    while start < end and text[start].isspace():
+        start += 1
+    while end > start and text[end - 1].isspace():
+        end -= 1
+    return start, end
+
+
 def chunk_text(text: str, tokenizer, max_length: int, overlap: int) -> list[Chunk]:
     """Split ``text`` into token-aligned, overlapping chunks that fit the model.
 
@@ -174,14 +183,23 @@ class NerEngine:
         entities: list[Entity] = []
         for index, chunk in enumerate(chunks):
             for raw in self.pipeline(chunk.text):
-                entities.append(self._to_entity(raw, chunk.offset, text))
+                entity = self._to_entity(raw, chunk.offset, text)
+                if entity is not None:
+                    entities.append(entity)
             if progress_cb is not None:
                 progress_cb(index + 1, total)
         return merge_entities(entities, text)
 
-    def _to_entity(self, raw: dict, offset: int, full_text: str) -> Entity:
+    def _to_entity(self, raw: dict, offset: int, full_text: str) -> Entity | None:
         start = int(raw["start"]) + offset
         end = int(raw["end"]) + offset
+        # Pipeline spans can include leading/trailing whitespace (e.g. a token
+        # that opens a new line). Trim it so the entity text is clean and so two
+        # spans that differ only by a trailing newline collapse to one in
+        # merge_entities. An all-whitespace span is dropped.
+        start, end = _trim_span(full_text, start, end)
+        if start >= end:
+            return None
         label = raw.get("entity_group") or raw.get("entity") or ""
         return Entity(
             class_name=strip_bio(str(label)),

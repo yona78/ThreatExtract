@@ -23,9 +23,10 @@ services:
       # --- Hard offline guarantees --------------------------------------- #
       TRANSFORMERS_OFFLINE: "1"
       HF_HUB_OFFLINE: "1"
-    volumes:
-      # Optional: mount your local cache so you can swap models by editing
-      # MODEL_PATH above without rebuilding. Comment this out to rely solely on
-      # the self-contained copy baked into the image.
-      - ./model_cache:/app/model_cache:ro
+    # The chosen model is baked into the image, so the container runs fully
+    # self-contained and offline with no host files required. To swap models
+    # WITHOUT rebuilding, download another model into ./model_cache/, uncomment
+    # the mount below, and point MODEL_PATH above at the new directory.
+    # volumes:
+    #   - ./model_cache:/app/model_cache:ro
     restart: unless-stopped
