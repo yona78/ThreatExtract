@@ -10,8 +10,8 @@ affect customer deployment feasibility.
 
 | Model | Parameters | Cache bytes | Full-test elapsed | RSS peak MB | Estimated energy J |
 |---|---:|---:|---:|---:|---:|
-| SecureBERT-NER | 124085800 | 996220887 | 24.468s | 699.46875 | 440.426 |
-| CyNER | 277461515 | 1124083139 | 26.489s | 890.046875 | 476.801 |
+| SecureBERT-NER | 124085800 | 996220887 | 24.140s | 812.765625 | 434.524 |
+| CyNER | 277461515 | 1124083139 | 27.400s | 948.53125 | 493.191 |
 
 ## Discussion
 

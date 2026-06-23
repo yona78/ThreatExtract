@@ -1,75 +1,61 @@
-# Fork 1 Project Report: DNRTI NER Model Selection
+# Fork 1 Final Report: Frozen SecureBERT-NER vs CyNER on DNRTI
 
 ## Abstract
 
-This report benchmarks two cybersecurity named entity recognition models,
-`CyberPeace-Institute/SecureBERT-NER` and `AI4Sec/cyner-xlm-roberta-base`, on the DNRTI threat
-intelligence dataset. The central difficulty is not just inference accuracy:
-the two models expose different taxonomies, DNRTI uses a third taxonomy,
-and the selected model must be deployable in a fully offline on-premise
-environment. We therefore evaluate strict exact-span F1, relaxed boundary
-overlap F1, per-label behavior, subset-size stability, latency, memory,
-model footprint, and leakage risk. On the full DNRTI test split,
-SecureBERT-NER is the clear winner.
+This offline study compares frozen SecureBERT-NER and CyNER on DNRTI for an on-prem threat-intelligence NER product. The evidence leader is SecureBERT, but final product selection is intentionally left to the reviewer. The raw F1 gap is partly a taxonomy and training-lineage advantage, not pure recognition capability.
 
-![Evaluation pipeline](figures/evaluation_pipeline.svg)
+## Method
 
-## 1. Experimental Setting
+DNRTI test split: 664 sentences, 17716 tokens, 2348 collapsed gold spans, 16 skipped malformed tag-only lines.
+Models were run as frozen black boxes from `model_cache/fork1` with no training or weight edits. The primary metric is SemEval strict entity F1 with paired-bootstrap 95% CIs and McNemar checks.
 
-- DNRTI source: https://github.com/SCreaMxp/DNRTI-A-Large-scale-Dataset-for-Named-Entity-Recognition-in-Threat-Intelligence
-- Test split: `664` sentences, `17716` tokens,
-  `2348` collapsed gold spans.
-- SecureBERT-NER: `CyberPeace-Institute/SecureBERT-NER`.
-- CyNER: `AI4Sec/cyner-xlm-roberta-base`.
-- Hardware in this run: CPU execution, because PyTorch reported
-  `mps_available=false` in the current process.
-- Offline mode: enabled, using cached Hugging Face snapshots under
-  `model_cache/fork1`.
+## Headline Strict Result
 
-## 2. Headline Results
+| Model | Strict F1 | Gap vs other | 95% CI |
+|---|---:|---:|---|
+| securebert | 0.2823 | 0.1785 | [0.1518, 0.2069] |
+| cyner | 0.1038 | -0.1785 | [-0.2069, -0.1518] |
 
-![Model comparison](figures/model_comparison_metrics.svg)
+## Cross-Experiment Decision Count
 
-| Model | Exact F1 | Exact Precision | Exact Recall | Relaxed F1 | Full-test elapsed |
-|---|---:|---:|---:|---:|---:|
-| SecureBERT-NER | 0.2823 | 0.2239 | 0.3820 | 0.5086 | 24.468s |
-| CyNER | 0.1047 | 0.1201 | 0.0928 | 0.2604 | 26.489s |
+SecureBERT wins 90/97 strict head-to-head configs; 7 configs are statistically tied and 0 favor CyNER.
 
-SecureBERT wins under the primary metric, exact micro-F1, and the ranking
-is unchanged under relaxed boundary matching. That matters because relaxed
-matching is designed to absorb small tokenization or boundary differences;
-the conclusion is therefore not merely a boundary artifact.
+Direction votes:
 
-## 3. Discussion
+| Direction | Vote | Rationale |
+|---|---|---|
+| 01 | SecureBERT | all four SemEval schemes preserve a positive gap |
+| 02 | SecureBERT | preprocessing sweeps did not flip the full-test ranking |
+| 03 | SecureBERT | min-faithful subsets reach stable positive gaps |
+| 04 | SecureBERT | paper-native protocol keeps the positive gap |
+| 05 | SecureBERT with bias caveat | oracle and lineage show structural advantage |
+| 06 | SecureBERT | CPU profile is smaller and faster at deployment lengths |
+| 07 | SecureBERT with confidence caveat | robustness holds, raw calibration fails both |
 
-The absolute exact F1 values are modest because this is a cross-dataset,
-cross-taxonomy benchmark. We are not evaluating models fine-tuned on DNRTI;
-we are measuring transfer plus assignment-specified label projection. The
-model taxonomy matters. CyNER collapses the world into five categories,
-which makes it compact conceptually but unable to express DNRTI `Time` and
-`Area`. SecureBERT has finer APTNER-derived labels and covers `TIME` and
-`LOC`, which improves both recall and operational usefulness.
+## Sensitivity
 
-The result also changes how the product should be framed. SecureBERT is the
-better deployment default, but DNRTI `Purp` and `Features` remain uncovered
-by both models under the PDF mapping. If those classes are product-critical,
-they require a second-stage classifier, weak rules, or fine-tuning.
+No full-split preprocessing, protocol, or robustness condition reverses the ranking. Small 10-sentence subsets are often underpowered and can tie by CI, so they are not decision-grade.
 
-## 4. Threats To Validity
+## Capability Vs Bias
 
-- The benchmark reconstructs DNRTI sentences using normalized single spaces.
-  This is appropriate for the provided token/tag files, but it may differ
-  from original report whitespace.
-- Reported energy is estimated from elapsed seconds and a fixed wattage
-  assumption. It is not a hardware-counter measurement.
-- The current run is CPU-only. The script supports `--device mps`; rerunning
-  on an M4 process with MPS exposed should improve latency, but not the
-  model-selection conclusion unless a backend-specific inference bug appears.
-- CyberNER-trained checkpoints should not be substituted into this comparison
-  because CyberNER includes DNRTI and would contaminate the benchmark.
+The raw PDF-mapping gap is 0.1785. The oracle ceiling gap is 0.0992 (55.6% of the raw gap). The conservative bias-adjusted residual is 0.0793; this remains positive, but it is not a causal decomposition.
 
-## 5. Conclusion
+## Operational Profile
 
-Deploy SecureBERT-NER as the offline on-premise default. It dominates CyNER
-on exact F1, relaxed F1, recall, model footprint, memory peak, and elapsed
-time in this benchmark.
+CPU deployment note: at 256 tokens and batch=1, SecureBERT p50 latency is 75.24 ms vs CyNER 124.69 ms (1.66x faster), with RSS 291.0 MB vs 780.7 MB.
+
+## Reliability
+
+securebert ECE 0.6520, precision>=0.90 threshold unreachable; cyner ECE 0.7044, precision>=0.90 threshold unreachable.
+Robustness perturbations preserve a positive SecureBERT gap, but random casing sharply reduces both models and should be normalized or monitored upstream.
+
+## Threats To Validity
+
+- APTNER/DNRTI overlap could not be quantified offline because `data/aptner/` is absent.
+- The label projection structurally favors SecureBERT; the bias adjustment is a ceiling-based sensitivity check, not proof of independent capability.
+- Energy is estimated where `powermetrics` is unavailable.
+- Raw confidence scores do not provide a precision>=0.90 operating point for either model.
+
+## Conclusion
+
+The evidence package supports SecureBERT-NER as the current evidence leader, but it does not hard-code the product selection. SecureBERT wins the statistical comparisons, survives the protocol and robustness checks, has the better CPU deployment envelope, and retains a positive residual after the ontology-ceiling bias check. The final chosen model should be set by the reviewer/product owner after deciding how to weigh the structural-bias caveat and label-coverage risks. The product should not present the full raw gap as pure model quality, and it should add calibration/abstention logic before using confidence as an analyst triage threshold.

@@ -1,11 +1,14 @@
 UV_CACHE_DIR ?= .uv-cache
-UV_RUN = UV_CACHE_DIR=$(UV_CACHE_DIR) uv run --with-requirements requirements-research.txt
-PYTHON ?= $(UV_RUN) python
-PYTEST ?= $(UV_RUN) pytest
+VENV ?= .venv
+VENV_PYTHON ?= $(VENV)/bin/python
+UV_PIP = UV_CACHE_DIR=$(UV_CACHE_DIR) uv pip install --python $(VENV_PYTHON)
+RUN_ENV = PYTHONPATH=src:. MPLCONFIGDIR=.matplotlib-cache
+PYTHON ?= $(RUN_ENV) $(VENV_PYTHON)
+PYTEST ?= $(RUN_ENV) $(VENV_PYTHON) -m pytest
 REPORTS ?= reports/fork1
 DNRTI_DIR ?= data/dnrti
 CACHE_DIR ?= model_cache/fork1
-DEVICE ?= mps
+DEVICE ?= cpu
 SEED ?= 20260621
 
 RUN = $(PYTHON) -m fork1.run_experiment --dnrti-dir $(DNRTI_DIR) --out-dir $(REPORTS) --offline --cache-dir $(CACHE_DIR)
@@ -14,7 +17,7 @@ SYNTH = $(PYTHON) -m fork1.synthesis --reports-dir $(REPORTS) --out-dir $(REPORT
 .PHONY: setup-research test legacy e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 figures reproduce
 
 setup-research:
-	uv pip install -r requirements-research.txt
+	$(UV_PIP) -r requirements-research.txt
 
 test:
 	$(PYTEST) -q
@@ -57,4 +60,4 @@ e11:
 
 figures: e2 e4 e7 e8 e10
 
-reproduce: test legacy e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11
+reproduce: setup-research test legacy e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11

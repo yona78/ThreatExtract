@@ -20,6 +20,10 @@ dist/
 htmlcov/
 .mypy_cache/
 .uv-cache/
+.matplotlib-cache/
+
+# Local research datasets are required for reproduction but are not source code
+data/dnrti/
 
 # Model weights are downloaded locally BEFORE the Docker build — never commit them
 model_cache/

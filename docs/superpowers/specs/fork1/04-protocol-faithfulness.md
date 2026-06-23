@@ -14,7 +14,7 @@
 ## What to do
 1. Run both models under `PRESETS["pdf_mapping"]` and `PRESETS["paper_native"]` (Task 3.1).
 2. Build per-token BIO via alignment for the seqeval cross-check on 1:1 labels.
-3. Report verdict + strict-F1 + gap + CI under each protocol; quantify how much the gap moves.
+3. Report ranking + strict-F1 + gap + CI under each protocol; quantify how much the gap moves.
 4. Note labels that are **unscorable** under paper-native protocol due to one-to-many mapping (report as coverage, not silent drop).
 
 ## Outputs
@@ -26,7 +26,7 @@
 - Seqeval cross-check on the unique-label BIO subset passed with delta 0.0000 for every protocol/model pair. PDF-mapping unique-label F1 was SecureBERT 0.7300 and CyNER 0.3341; paper-native unique-label F1 was SecureBERT 0.7024 and CyNER 0.2969. These are token-aligned unique-label checks, not the headline raw-span strict scores.
 - Unique-label coverage is asymmetric. SecureBERT has 1,601/2,348 uniquely scorable gold spans (68.19% coverage); 747 spans are not uniquely covered: `Features` 116, `Idus` 129, `OffAct` 150, `Org` 137, `Purp` 115, `Way` 100. CyNER has only 695/2,348 uniquely scorable gold spans (29.60% coverage); 1,653 spans are not uniquely covered: `Area` 216, `Features` 116, `HackOrg` 369, `Idus` 129, `OffAct` 150, `Org` 137, `Purp` 115, `SecTeam` 152, `Time` 169, `Way` 100.
 
-## Conclusion → contribution to model choice
-- The verdict survives the paper-native preset. SecureBERT remains ahead with a CI-excluding-0 gap under both protocols, and no flip flag is raised.
-- The assignment mapping is not the source of the direction-level verdict: changing to the paper-native preprocessing/max-length preset narrows the gap by only 0.0049. The larger protocol caveat is coverage: CyNER's ontology can be scored on a much smaller unique-label subset than SecureBERT's, which reinforces the taxonomy-mismatch disadvantage measured elsewhere rather than explaining it away.
-- Vote toward final decision (08): SecureBERT, with a protocol caveat that paper-native/token-BIO validation is clean but CyNER has low uniquely scorable DNRTI coverage.
+## Conclusion → evidence contribution
+- The ranking survives the paper-native preset. SecureBERT remains ahead with a CI-excluding-0 gap under both protocols, and no flip flag is raised.
+- The assignment mapping is not the source of the direction-level ranking: changing to the paper-native preprocessing/max-length preset narrows the gap by only 0.0049. The larger protocol caveat is coverage: CyNER's ontology can be scored on a much smaller unique-label subset than SecureBERT's, which reinforces the taxonomy-mismatch disadvantage measured elsewhere rather than explaining it away.
+- Direction 04 evidence contribution: SecureBERT leads, with a protocol caveat that paper-native/token-BIO validation is clean but CyNER has low uniquely scorable DNRTI coverage.

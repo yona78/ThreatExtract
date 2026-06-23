@@ -10,6 +10,7 @@ from benchmark import (
     map_model_label_to_dnrti,
     relaxed_iou_match,
     select_winner,
+    write_final_selection,
 )
 
 
@@ -124,3 +125,36 @@ def test_select_winner_prefers_all_subset_exact_f1() -> None:
     ]
 
     assert select_winner(rows)["winner"] == "securebert"
+
+
+def test_write_final_selection_reports_evidence_without_deploy_decision(tmp_path: Path) -> None:
+    rows = [
+        {
+            "model": "securebert",
+            "samples": 664,
+            "subset_size": "all",
+            "elapsed_seconds": 1.0,
+            "rss_peak_mb": 10.0,
+            "metrics": {
+                "exact": {"f1": 0.28, "precision": 0.22, "recall": 0.38},
+                "relaxed": {"f1": 0.5},
+            },
+        },
+        {
+            "model": "cyner",
+            "samples": 664,
+            "subset_size": "all",
+            "elapsed_seconds": 2.0,
+            "rss_peak_mb": 20.0,
+            "metrics": {
+                "exact": {"f1": 0.10, "precision": 0.12, "recall": 0.09},
+                "relaxed": {"f1": 0.26},
+            },
+        },
+    ]
+
+    write_final_selection(tmp_path / "final_selection.md", rows, model_loads={})
+
+    text = (tmp_path / "final_selection.md").read_text(encoding="utf-8")
+    assert "Evidence leader: **securebert**." in text
+    assert "Decision: deploy" not in text

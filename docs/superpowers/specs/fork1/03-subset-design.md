@@ -25,7 +25,7 @@
 - Smallest subset preserving the full-split verdict with all three seeds CI-excluding-0: random 50, label-stratified 50, density 50, length 50, hardness 10. Hardness reaches the verdict at 10 because it deliberately selects rare-label/long sentences; it is not a representative fast gate.
 - Ranking instability was confined to 10-sentence subsets outside hardness. The gap always stayed positive for SecureBERT, but the 95% CI included 0 for random size 10 in 2/3 seeds, label-stratified size 10 in 2/3 seeds, density size 10 in 1/3 seeds, and length size 10 in 1/3 seeds. All size 50, 100, 250, and all-split cells had flip flag `no`.
 
-## Conclusion → contribution to model choice
-- The verdict is stable once the subset reaches 50 sentences for representative strategies: SecureBERT wins every size >=50 cell with a 95% CI excluding 0. The 10-sentence subsets are too small for a trustworthy decision except for the deliberately biased hardness strategy.
+## Conclusion → evidence contribution
+- The ranking is stable once the subset reaches 50 sentences for representative strategies: SecureBERT wins every size >=50 cell with a 95% CI excluding 0. The 10-sentence subsets are too small for trustworthy model-choice evidence except for the deliberately biased hardness strategy.
 - Recommended fast regression gate: a fixed 50-sentence label-stratified subset for verdict checks, because it preserves label support and clears the CI rule across all seeds. Use the full test split for publication numbers, and use at least 250 random/label-stratified examples when absolute F1 comparability to the full split matters.
-- Vote toward final decision (08): SecureBERT, with a subset-size caveat that tiny 10-sentence representative samples are underpowered and should be treated as smoke tests, not evidence for model choice.
+- Direction 03 evidence contribution: SecureBERT leads, with a subset-size caveat that tiny 10-sentence representative samples are underpowered and should be treated as smoke tests, not evidence for model choice.

@@ -1,58 +1,224 @@
 {
-  "config": {
-    "cache_dir": "model_cache/fork1",
-    "device": "auto",
-    "dnrti_dir": "/private/tmp/DNRTI-extracted",
-    "download_dnrti": false,
-    "download_models": false,
-    "dry_run": false,
-    "models": [
-      "securebert",
-      "cyner"
+  "cache_dir": "model_cache/fork1",
+  "dataset": {
+    "loader_stats": [
+      {
+        "label_counts": {
+          "Area": 216,
+          "Exp": 132,
+          "Features": 116,
+          "HackOrg": 369,
+          "Idus": 129,
+          "OffAct": 150,
+          "Org": 137,
+          "Purp": 115,
+          "SamFile": 248,
+          "SecTeam": 152,
+          "Time": 169,
+          "Tool": 315,
+          "Way": 100
+        },
+        "labeled_tokens": 3606,
+        "malformed_lines": 16,
+        "sentences": 664,
+        "spans": 2348,
+        "split": "test",
+        "tokens": 17716
+      }
     ],
-    "offline": true,
-    "out_dir": "reports/fork1",
-    "repeats": 1,
-    "seed": 20260621,
-    "split": "test",
-    "subset_sizes": [
-      "10",
-      "100",
-      "all"
-    ]
+    "malformed_lines": 16,
+    "sentences": 664,
+    "spans": 2348,
+    "tokens": 17716
   },
-  "dataset": [
-    {
-      "label_counts": {
-        "Area": 216,
-        "Exp": 132,
-        "Features": 116,
-        "HackOrg": 369,
-        "Idus": 129,
-        "OffAct": 150,
-        "Org": 137,
-        "Purp": 115,
-        "SamFile": 248,
-        "SecTeam": 152,
-        "Time": 169,
-        "Tool": 315,
-        "Way": 100
-      },
-      "labeled_tokens": 3606,
-      "malformed_lines": 16,
-      "sentences": 664,
-      "spans": 2348,
-      "split": "test",
-      "tokens": 17716
-    }
-  ],
   "environment": {
     "mps_available": false,
     "platform": "macOS-26.3-arm64-arm-64bit",
-    "processor": "arm",
     "python": "3.12.8 (v3.12.8:2dc476bcb91, Dec  3 2024, 14:43:19) [Clang 13.0.0 (clang-1300.0.29.30)]",
     "torch_version": "2.5.1",
     "transformers_version": "4.46.3"
   },
-  "warnings_count": 16
+  "experiment_configs": [
+    "methodology::pdf_mapping::exact",
+    "methodology::pdf_mapping::partial",
+    "methodology::pdf_mapping::strict",
+    "methodology::pdf_mapping::type",
+    "preprocessing::alignment=contained::strict",
+    "preprocessing::alignment=majority::strict",
+    "preprocessing::alignment=overlap::strict",
+    "preprocessing::context=document::strict",
+    "preprocessing::context=sentence::strict",
+    "preprocessing::context=window::strict",
+    "preprocessing::detok=punct_aware::strict",
+    "preprocessing::detok=single_space::strict",
+    "preprocessing::max_length=128::strict",
+    "preprocessing::max_length=256::strict",
+    "preprocessing::max_length=full::strict",
+    "preprocessing::normalization=lower::strict",
+    "preprocessing::normalization=nfkc::strict",
+    "preprocessing::normalization=none::strict",
+    "preprocessing::normalization=refang::strict",
+    "protocol::paper_native::strict",
+    "protocol::pdf_mapping::strict",
+    "robustness::perturbation=defang::strict",
+    "robustness::perturbation=keyboard_typo::strict",
+    "robustness::perturbation=random_case::strict",
+    "robustness::perturbation=refang::strict",
+    "subset::subset=density,size=10,seed=1::strict",
+    "subset::subset=density,size=10,seed=2::strict",
+    "subset::subset=density,size=10,seed=3::strict",
+    "subset::subset=density,size=100,seed=1::strict",
+    "subset::subset=density,size=100,seed=2::strict",
+    "subset::subset=density,size=100,seed=3::strict",
+    "subset::subset=density,size=250,seed=1::strict",
+    "subset::subset=density,size=250,seed=2::strict",
+    "subset::subset=density,size=250,seed=3::strict",
+    "subset::subset=density,size=50,seed=1::strict",
+    "subset::subset=density,size=50,seed=2::strict",
+    "subset::subset=density,size=50,seed=3::strict",
+    "subset::subset=density,size=all,seed=1::strict",
+    "subset::subset=density,size=all,seed=2::strict",
+    "subset::subset=density,size=all,seed=3::strict",
+    "subset::subset=hardness,size=10,seed=1::strict",
+    "subset::subset=hardness,size=10,seed=2::strict",
+    "subset::subset=hardness,size=10,seed=3::strict",
+    "subset::subset=hardness,size=100,seed=1::strict",
+    "subset::subset=hardness,size=100,seed=2::strict",
+    "subset::subset=hardness,size=100,seed=3::strict",
+    "subset::subset=hardness,size=250,seed=1::strict",
+    "subset::subset=hardness,size=250,seed=2::strict",
+    "subset::subset=hardness,size=250,seed=3::strict",
+    "subset::subset=hardness,size=50,seed=1::strict",
+    "subset::subset=hardness,size=50,seed=2::strict",
+    "subset::subset=hardness,size=50,seed=3::strict",
+    "subset::subset=hardness,size=all,seed=1::strict",
+    "subset::subset=hardness,size=all,seed=2::strict",
+    "subset::subset=hardness,size=all,seed=3::strict",
+    "subset::subset=label_stratified,size=10,seed=1::strict",
+    "subset::subset=label_stratified,size=10,seed=2::strict",
+    "subset::subset=label_stratified,size=10,seed=3::strict",
+    "subset::subset=label_stratified,size=100,seed=1::strict",
+    "subset::subset=label_stratified,size=100,seed=2::strict",
+    "subset::subset=label_stratified,size=100,seed=3::strict",
+    "subset::subset=label_stratified,size=250,seed=1::strict",
+    "subset::subset=label_stratified,size=250,seed=2::strict",
+    "subset::subset=label_stratified,size=250,seed=3::strict",
+    "subset::subset=label_stratified,size=50,seed=1::strict",
+    "subset::subset=label_stratified,size=50,seed=2::strict",
+    "subset::subset=label_stratified,size=50,seed=3::strict",
+    "subset::subset=label_stratified,size=all,seed=1::strict",
+    "subset::subset=label_stratified,size=all,seed=2::strict",
+    "subset::subset=label_stratified,size=all,seed=3::strict",
+    "subset::subset=length,size=10,seed=1::strict",
+    "subset::subset=length,size=10,seed=2::strict",
+    "subset::subset=length,size=10,seed=3::strict",
+    "subset::subset=length,size=100,seed=1::strict",
+    "subset::subset=length,size=100,seed=2::strict",
+    "subset::subset=length,size=100,seed=3::strict",
+    "subset::subset=length,size=250,seed=1::strict",
+    "subset::subset=length,size=250,seed=2::strict",
+    "subset::subset=length,size=250,seed=3::strict",
+    "subset::subset=length,size=50,seed=1::strict",
+    "subset::subset=length,size=50,seed=2::strict",
+    "subset::subset=length,size=50,seed=3::strict",
+    "subset::subset=length,size=all,seed=1::strict",
+    "subset::subset=length,size=all,seed=2::strict",
+    "subset::subset=length,size=all,seed=3::strict",
+    "subset::subset=random,size=10,seed=1::strict",
+    "subset::subset=random,size=10,seed=2::strict",
+    "subset::subset=random,size=10,seed=3::strict",
+    "subset::subset=random,size=100,seed=1::strict",
+    "subset::subset=random,size=100,seed=2::strict",
+    "subset::subset=random,size=100,seed=3::strict",
+    "subset::subset=random,size=250,seed=1::strict",
+    "subset::subset=random,size=250,seed=2::strict",
+    "subset::subset=random,size=250,seed=3::strict",
+    "subset::subset=random,size=50,seed=1::strict",
+    "subset::subset=random,size=50,seed=2::strict",
+    "subset::subset=random,size=50,seed=3::strict",
+    "subset::subset=random,size=all,seed=1::strict",
+    "subset::subset=random,size=all,seed=2::strict",
+    "subset::subset=random,size=all,seed=3::strict"
+  ],
+  "generated_at_utc": "2026-06-23T17:13:31.012144+00:00",
+  "git": {
+    "branch": "codex/fork1-deep-research",
+    "commit": "a132e17318c3eba8431074cf2ab711cc84da6d2b"
+  },
+  "inputs": [
+    {
+      "bytes": 16659,
+      "path": "benchmark_results.jsonl",
+      "sha256": "cf38338ec6dd41ec1e03325d19301db7e464b4b0bd6302f4daec5fecb215ad39"
+    },
+    {
+      "bytes": 311,
+      "path": "calibration_summary.jsonl",
+      "sha256": "ca1c7e82efd1fdc29bd0606f026f1fa4157e1a7563182cf586add86f9070349d"
+    },
+    {
+      "bytes": 6107,
+      "path": "calibration_thresholds.jsonl",
+      "sha256": "c17a90c8f98f0d99a86b62eb60502558b67637c73177e8a1376eacc40ae3bee3"
+    },
+    {
+      "bytes": 1234,
+      "path": "intrinsic_metrics.jsonl",
+      "sha256": "dc5c01d5fa3920252455d3151ed8b9abbc52032c7da9fceb6bde8fecb85b7d4b"
+    },
+    {
+      "bytes": 56427,
+      "path": "master_table.jsonl",
+      "sha256": "c196fcf225197843b096891439bcc3d46296683ecb2c07ef4bb39ec7d7e24295"
+    },
+    {
+      "bytes": 3411,
+      "path": "methodology_baseline.jsonl",
+      "sha256": "66800704dca3a8c4735dbd7e5ddac644b78b0bcaddf33958d0d98e2a19b74508"
+    },
+    {
+      "bytes": 436,
+      "path": "methodology_seqeval_crosscheck.jsonl",
+      "sha256": "4d91e728e125c2089033fadf6c28aa0416730e5cced1ce230d8bad8c472e9431"
+    },
+    {
+      "bytes": 31124,
+      "path": "operational_envelope.jsonl",
+      "sha256": "336abc96ff858bf40952b39e39f0151ed217007c9cfbe40f494f4bc75cb3e34f"
+    },
+    {
+      "bytes": 11496,
+      "path": "preprocessing_sensitivity.jsonl",
+      "sha256": "faef3f4e5e3f2ce5aad9e69e74eff6d9021f09be916feefde4f0e26721734e36"
+    },
+    {
+      "bytes": 1619,
+      "path": "protocol_comparison.jsonl",
+      "sha256": "45df6b7d5179d61ffb6a21b774eba2a886f8c8e50d0e7d3d938b93ffd674598f"
+    },
+    {
+      "bytes": 870,
+      "path": "protocol_seqeval_crosscheck.jsonl",
+      "sha256": "fb10a0f081287397ad2fce9a191380965799ee42257bc712df23248bc648093e"
+    },
+    {
+      "bytes": 669,
+      "path": "protocol_unique_label_coverage.jsonl",
+      "sha256": "3b4b849a3bd005d1257f9bddba11148de42ace0876a9f1c087333e617208c41e"
+    },
+    {
+      "bytes": 2617,
+      "path": "robustness.jsonl",
+      "sha256": "8da8a9e2da9e5512aa80e3c11fee13162a76431953ec646a424a53028129a786"
+    },
+    {
+      "bytes": 58923,
+      "path": "subset_study.jsonl",
+      "sha256": "2ff89bfd97f80253535358807ab4c54082b8bfd467d0cfc5ca3bd2a4cdbe57c3"
+    }
+  ],
+  "reproduce": {
+    "command": "make reproduce",
+    "research_dependency_mode": "make setup-research installs requirements-research.txt into .venv with uv pip"
+  }
 }

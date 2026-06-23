@@ -11,16 +11,16 @@
 <text x="498.1" y="141" font-family="Arial, sans-serif" font-size="12" fill="#111827">CyNER 0.105</text>
 <text x="146" y="223" text-anchor="end" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#111827">Elapsed seconds</text>
 <text x="146" y="242" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">lower is better</text>
-<rect x="160" y="195" width="822.1" height="24" rx="4" fill="#2563eb"/>
-<text x="990.1" y="212" font-family="Arial, sans-serif" font-size="12" fill="#111827">SecureBERT-NER 24.468</text>
+<rect x="160" y="195" width="784.1" height="24" rx="4" fill="#2563eb"/>
+<text x="952.1" y="212" font-family="Arial, sans-serif" font-size="12" fill="#111827">SecureBERT-NER 24.140</text>
 <rect x="160" y="229" width="890.0" height="24" rx="4" fill="#dc2626"/>
-<text x="1058.0" y="246" font-family="Arial, sans-serif" font-size="12" fill="#111827">CyNER 26.489</text>
+<text x="1058.0" y="246" font-family="Arial, sans-serif" font-size="12" fill="#111827">CyNER 27.400</text>
 <text x="146" y="328" text-anchor="end" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#111827">RSS peak MB</text>
 <text x="146" y="347" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">lower is better</text>
-<rect x="160" y="300" width="699.4" height="24" rx="4" fill="#2563eb"/>
-<text x="867.4" y="317" font-family="Arial, sans-serif" font-size="12" fill="#111827">SecureBERT-NER 699.469</text>
+<rect x="160" y="300" width="762.6" height="24" rx="4" fill="#2563eb"/>
+<text x="930.6" y="317" font-family="Arial, sans-serif" font-size="12" fill="#111827">SecureBERT-NER 812.766</text>
 <rect x="160" y="334" width="890.0" height="24" rx="4" fill="#dc2626"/>
-<text x="1058.0" y="351" font-family="Arial, sans-serif" font-size="12" fill="#111827">CyNER 890.047</text>
+<text x="1058.0" y="351" font-family="Arial, sans-serif" font-size="12" fill="#111827">CyNER 948.531</text>
 <text x="146" y="433" text-anchor="end" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#111827">Cache GB</text>
 <text x="146" y="452" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">lower is better</text>
 <rect x="160" y="405" width="788.6" height="24" rx="4" fill="#2563eb"/>

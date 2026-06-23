@@ -68,7 +68,13 @@ def write_text(path: Path, lines: Iterable[str]) -> None:
 
 def dataset_stats() -> dict[str, object]:
     metadata = json.loads((REPORT_DIR / "run_metadata.json").read_text(encoding="utf-8"))
-    return metadata["dataset"][0]
+    dataset = metadata["dataset"]
+    if isinstance(dataset, list):
+        return dataset[0]
+    loader_stats = dataset.get("loader_stats")
+    if isinstance(loader_stats, list) and loader_stats:
+        return loader_stats[0]
+    return dataset
 
 
 def full_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -524,7 +530,7 @@ def write_benchmark_summary(rows: list[dict[str, object]], stats: dict[str, obje
         "`LOC`, which improves both recall and operational usefulness.",
         "",
         "The result also changes how the product should be framed. SecureBERT is the",
-        "better deployment default, but DNRTI `Purp` and `Features` remain uncovered",
+        "current evidence leader, but DNRTI `Purp` and `Features` remain uncovered",
         "by both models under the PDF mapping. If those classes are product-critical,",
         "they require a second-stage classifier, weak rules, or fine-tuning.",
         "",
@@ -543,9 +549,9 @@ def write_benchmark_summary(rows: list[dict[str, object]], stats: dict[str, obje
         "",
         "## 5. Conclusion",
         "",
-        "Deploy SecureBERT-NER as the offline on-premise default. It dominates CyNER",
-        "on exact F1, relaxed F1, recall, model footprint, memory peak, and elapsed",
-        "time in this benchmark.",
+        "SecureBERT-NER is the current evidence leader. It leads CyNER on exact F1,",
+        "relaxed F1, recall, model footprint, memory peak, and elapsed time in this",
+        "benchmark, while final product selection remains with the reviewer/product owner.",
     ]
     write_text(REPORT_DIR / "benchmark_summary.md", lines)
 
@@ -804,63 +810,58 @@ def write_final_selection(rows: list[dict[str, object]]) -> None:
     secure = row_for(rows, "securebert")
     cyner = row_for(rows, "cyner")
     lines = [
-        "# Final Model Selection",
+        "# Evidence Leader Summary",
         "",
-        "## Decision",
+        "Evidence leader: **SecureBERT-NER**.",
         "",
-        "Deploy **SecureBERT-NER** as the default offline on-premise model.",
+        "Evidence basis: full test split exact micro-F1.",
+        "Deployment selection is intentionally left to the reviewer/product owner.",
         "",
-        "![Model comparison](figures/model_comparison_metrics.svg)",
+        "## Headline Evidence",
         "",
-        "## Evidence",
-        "",
-        "| Criterion | SecureBERT-NER | CyNER | Winner |",
-        "|---|---:|---:|---|",
+        f"- Full-test exact micro-F1: `{metric(secure, 'exact', 'f1'):.4f}`.",
         (
-            f"| Exact micro-F1 | {metric(secure, 'exact', 'f1'):.4f} | "
-            f"{metric(cyner, 'exact', 'f1'):.4f} | SecureBERT |"
+            f"- Full-test exact precision / recall: "
+            f"`{metric(secure, 'exact', 'precision'):.4f}` / "
+            f"`{metric(secure, 'exact', 'recall'):.4f}`."
+        ),
+        f"- Full-test relaxed F1: `{metric(secure, 'relaxed', 'f1'):.4f}`.",
+        f"- Inference elapsed on full test split: `{secure['elapsed_seconds']:.3f}` seconds.",
+        "",
+        "## Full-Test Comparison",
+        "",
+        "| Model | Exact F1 | Exact P | Exact R | Relaxed F1 | Elapsed s | RSS peak MB |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        (
+            f"| SecureBERT-NER | {metric(secure, 'exact', 'f1'):.4f} | "
+            f"{metric(secure, 'exact', 'precision'):.4f} | "
+            f"{metric(secure, 'exact', 'recall'):.4f} | "
+            f"{metric(secure, 'relaxed', 'f1'):.4f} | "
+            f"{secure['elapsed_seconds']:.3f} | {secure['rss_peak_mb']} |"
         ),
         (
-            f"| Exact recall | {metric(secure, 'exact', 'recall'):.4f} | "
-            f"{metric(cyner, 'exact', 'recall'):.4f} | SecureBERT |"
+            f"| CyNER | {metric(cyner, 'exact', 'f1'):.4f} | "
+            f"{metric(cyner, 'exact', 'precision'):.4f} | "
+            f"{metric(cyner, 'exact', 'recall'):.4f} | "
+            f"{metric(cyner, 'relaxed', 'f1'):.4f} | "
+            f"{cyner['elapsed_seconds']:.3f} | {cyner['rss_peak_mb']} |"
         ),
-        (
-            f"| Relaxed F1 | {metric(secure, 'relaxed', 'f1'):.4f} | "
-            f"{metric(cyner, 'relaxed', 'f1'):.4f} | SecureBERT |"
-        ),
-        (
-            f"| Full-test elapsed seconds | {secure['elapsed_seconds']:.3f} | "
-            f"{cyner['elapsed_seconds']:.3f} | SecureBERT |"
-        ),
-        (f"| RSS peak MB | {secure['rss_peak_mb']} | {cyner['rss_peak_mb']} | " "SecureBERT |"),
-        "| Parameter count | 124085800 | 277461515 | SecureBERT |",
-        "| Cache bytes | 996220887 | 1124083139 | SecureBERT |",
         "",
-        "## Discussion",
+        "## Operational Fit",
         "",
-        "SecureBERT wins by a large margin on the primary scientific criterion, exact",
-        "micro-F1 on the full DNRTI test split. It also wins after relaxed matching,",
-        "which reduces the probability that the result is explained only by boundary",
-        "offsets. Operationally, SecureBERT is smaller and faster in this CPU run.",
+        "| Model | Parameters | Cached bytes |",
+        "|---|---:|---:|",
+        "| SecureBERT-NER | 124085800 | 996220887 |",
+        "| CyNER | 277461515 | 1124083139 |",
         "",
-        "CyNER remains attractive as a simple five-label model, but that simplicity is",
-        "also the main weakness here. The DNRTI assignment requires label distinctions",
-        "that CyNER cannot express, notably `Time` and `Area`, and its broad",
-        "`Organization` and `System` labels blur several DNRTI classes.",
-        "",
-        "## Deployment Recommendation",
-        "",
-        "Package SecureBERT-NER in the offline Docker path. Keep the benchmark script",
-        "and cached-model workflow as a regression gate: if future fine-tuned models",
-        "are proposed, they should beat SecureBERT on exact F1, relaxed F1, and the",
-        "high-value classes before replacing it.",
-        "",
-        "## Residual Risks",
+        "## Caveats",
         "",
         "- Neither assigned model covers DNRTI `Purp` or `Features` under the PDF",
         "  mapping.",
         "- Energy is estimated, not directly measured.",
         "- MPS latency should be rerun on the target M4 host.",
+        "- The benchmark treats CyberNER-derived checkpoints as contaminated because",
+        "  CyberNER includes DNRTI by construction.",
     ]
     write_text(REPORT_DIR / "final_selection.md", lines)
 
@@ -880,7 +881,8 @@ def write_project_page(rows: list[dict[str, object]], stats: dict[str, object]) 
         "whose taxonomy differs from both model taxonomies. The evaluation maps",
         "model outputs to DNRTI labels using the assignment PDF, then reports exact",
         "span F1, relaxed overlap F1, per-label behavior, subset-size stability, and",
-        "offline operational metrics. SecureBERT-NER is selected for deployment.",
+        "offline operational metrics. SecureBERT-NER is the current evidence leader;",
+        "deployment selection is intentionally left to the reviewer/product owner.",
         "",
         "![Pipeline](figures/evaluation_pipeline.svg)",
         "",
@@ -921,21 +923,12 @@ def write_project_page(rows: list[dict[str, object]], stats: dict[str, object]) 
         "- [Literature and leakage](literature_and_leakage.md)",
         "- [Dataset-size scaling](dataset_size_scaling.md)",
         "- [Operational metrics](operational_metrics.md)",
-        "- [Final model selection](final_selection.md)",
+        "- [Evidence leader summary](final_selection.md)",
         "",
         "## Reproduction",
         "",
         "```bash",
-        "python benchmark.py \\",
-        "  --dnrti-dir /path/to/DNRTI-extracted \\",
-        "  --out-dir reports/fork1 \\",
-        "  --split test \\",
-        "  --models securebert,cyner \\",
-        "  --subset-sizes 10,100,all \\",
-        "  --offline \\",
-        "  --cache-dir model_cache/fork1 \\",
-        "  --device auto",
-        "python scripts/generate_fork1_report_assets.py",
+        "make reproduce",
         "```",
         "",
         "## Dataset Snapshot",

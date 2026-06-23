@@ -8,7 +8,7 @@
 - **M4 GPU = MPS** (`--device mps`, your 10-core GPU). **M4 CPU = `--device cpu`.**
 - **Step 0:** verify `torch.backends.mps.is_available()` on the host (your earlier run logged it as false) and enable MPS; if it cannot be enabled, document why and proceed CPU-only.
 - **Measure BOTH `cpu` and `mps`.**
-- **Deployment relevance:** the offline Docker image installs **CPU-only torch** (to keep the image small) → **CPU latency/throughput/RSS are the customer-facing numbers**; MPS is the local-dev/accelerated ceiling. Every figure is labeled with its device, and the recommendation is made on **CPU** numbers with MPS shown as upside.
+- **Deployment relevance:** the offline Docker image installs **CPU-only torch** (to keep the image small) → **CPU latency/throughput/RSS are the customer-facing numbers**; MPS is the local-dev/accelerated ceiling. Every figure is labeled with its device, and the operational evidence is based on **CPU** numbers with MPS shown as upside.
 
 ## Setup
 - Models (frozen): both.
@@ -30,7 +30,7 @@
 - MPS envelope (local-dev ceiling): at batch=1, SecureBERT p50 latency was 14.73 ms (16), 12.62 ms (32), 16.93 ms (64), 21.69 ms (128), 40.91 ms (256). CyNER was 22.83 ms, 14.95 ms, 17.31 ms, 27.57 ms, 50.06 ms. CPU to MPS p50 speedup for SecureBERT was 1.74x at 16 tokens, 1.75x at 64, 2.66x at 128, and 1.84x at 256. CyNER speedup was 1.04x, 2.45x, 2.40x, and 2.49x for the same lengths.
 - Cache/model footprint: SecureBERT cache size was 950.1 MB and 124,085,800 parameters; CyNER cache size was 1,072.0 MB and 277,461,515 parameters. MPS RSS after load was 301.1 MB for SecureBERT vs 407.9 MB for CyNER.
 
-## Conclusion → contribution to model choice
+## Conclusion → evidence contribution
 - On CPU, SecureBERT is cheaper to operate for the deployment-relevant long inputs: at 256 tokens batch=1 it is 1.66x faster by p50 latency (75.24 ms vs 124.69 ms), uses about 37% of CyNER's RSS (291.0 MB vs 780.7 MB), loads about 4x faster, and has a smaller local cache.
-- The operational profile reinforces the accuracy verdict rather than complicating it. CyNER only has a small CPU latency edge at very short 16-token inputs; SecureBERT is faster, smaller in memory, and more accurate for the workloads that matter more for CTI text.
-- Vote toward final decision (08): SecureBERT on deployment cost as well as accuracy. Caveat: energy values are estimates, not real `powermetrics` readings.
+- The operational profile reinforces the accuracy evidence rather than complicating it. CyNER only has a small CPU latency edge at very short 16-token inputs; SecureBERT is faster, smaller in memory, and more accurate for the workloads that matter more for CTI text.
+- Direction 06 evidence contribution: SecureBERT leads on deployment cost as well as accuracy. Caveat: energy values are estimates, not real `powermetrics` readings.

@@ -320,8 +320,8 @@ def write_benchmark_summary(
         "",
         (
             "This offline study compares frozen SecureBERT-NER and CyNER on DNRTI for an "
-            "on-prem threat-intelligence NER product. SecureBERT is the recommended default, "
-            "but the recommendation is explicitly bias-adjusted: the raw F1 gap is partly a "
+            "on-prem threat-intelligence NER product. The evidence leader is SecureBERT, "
+            "but final product selection is intentionally left to the reviewer. The raw F1 gap is partly a "
             "taxonomy and training-lineage advantage, not pure recognition capability."
         ),
         "",
@@ -395,7 +395,7 @@ def write_benchmark_summary(
             "",
             "## Conclusion",
             "",
-            "Choose SecureBERT-NER for the offline on-prem product. It wins the statistical comparisons, survives the protocol and robustness checks, has the better CPU deployment envelope, and retains a positive residual after the ontology-ceiling bias check. The product should not present the full raw gap as pure model quality, and it should add calibration/abstention logic before using confidence as an analyst triage threshold.",
+            "The evidence package supports SecureBERT-NER as the current evidence leader, but it does not hard-code the product selection. SecureBERT wins the statistical comparisons, survives the protocol and robustness checks, has the better CPU deployment envelope, and retains a positive residual after the ontology-ceiling bias check. The final chosen model should be set by the reviewer/product owner after deciding how to weigh the structural-bias caveat and label-coverage risks. The product should not present the full raw gap as pure model quality, and it should add calibration/abstention logic before using confidence as an analyst triage threshold.",
             "",
         ]
     )
@@ -484,7 +484,7 @@ def write_run_metadata(
         ),
         "reproduce": {
             "command": "make reproduce",
-            "research_dependency_mode": "uv run --with-requirements requirements-research.txt",
+            "research_dependency_mode": "make setup-research installs requirements-research.txt into .venv with uv pip",
         },
     }
     path.write_text(json.dumps(jsonable(metadata), indent=2, sort_keys=True), encoding="utf-8")

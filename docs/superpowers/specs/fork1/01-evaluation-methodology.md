@@ -24,7 +24,7 @@
 - MUC error mix explains the strict losses. SecureBERT has many spurious entities (2216) and type/boundary incorrect matches (894), but it finds far more exact typed spans than CyNER (897 correct vs 216) and misses far fewer gold spans (557 vs 1436). CyNER emits fewer spurious predictions (903) but misses most DNRTI spans under the mapped ontology.
 - Seqeval cross-check delta on the 1:1-label BIO subset is 0.0000 for both models, below the <0.005 tolerance. The unique-label subset is not the headline metric, but it validates the token-aligned strict implementation against `seqeval`: SecureBERT unique-label F1 0.7300 over 1601 unique-label gold spans; CyNER 0.3341 over 695.
 
-## Conclusion → contribution to model choice
+## Conclusion → evidence contribution
 - The instrument does not reverse the old exact-only ranking. It strengthens confidence in the choice because SecureBERT wins under strict, exact, partial, and type scoring, and the strict gap reproduces the legacy sanity target within tolerance.
 - Strict F1 remains the decision metric because the product needs exact entity boundaries and the DNRTI label; type F1 is diagnostic. The type-score gap is larger (+0.2530), which shows SecureBERT's taxonomy is much closer to DNRTI even when boundary errors are discounted.
-- Direction 01 vote toward final decision: SecureBERT, with the caveat that this measuring instrument also exposes a structural ontology advantage that Direction 05 must discount rather than treating the full raw gap as pure recognition capability.
+- Direction 01 evidence contribution: SecureBERT leads under the measurement instrument, with the caveat that this instrument also exposes a structural ontology advantage that Direction 05 must discount rather than treating the full raw gap as pure recognition capability.

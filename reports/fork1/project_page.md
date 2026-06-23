@@ -9,7 +9,8 @@ We compare SecureBERT-NER and CyNER on DNRTI, a cybersecurity NER dataset
 whose taxonomy differs from both model taxonomies. The evaluation maps
 model outputs to DNRTI labels using the assignment PDF, then reports exact
 span F1, relaxed overlap F1, per-label behavior, subset-size stability, and
-offline operational metrics. SecureBERT-NER is selected for deployment.
+offline operational metrics. SecureBERT-NER is the current evidence leader;
+deployment selection is intentionally left to the reviewer/product owner.
 
 ![Pipeline](figures/evaluation_pipeline.svg)
 
@@ -19,8 +20,8 @@ offline operational metrics. SecureBERT-NER is selected for deployment.
 
 | Model | Exact F1 | Relaxed F1 | Exact recall | Elapsed s | RSS peak MB |
 |---|---:|---:|---:|---:|---:|
-| SecureBERT-NER | 0.2823 | 0.5086 | 0.3820 | 24.468 | 699.46875 |
-| CyNER | 0.1047 | 0.2604 | 0.0928 | 26.489 | 890.046875 |
+| SecureBERT-NER | 0.2823 | 0.5086 | 0.3820 | 24.140 | 812.765625 |
+| CyNER | 0.1047 | 0.2604 | 0.0928 | 27.400 | 948.53125 |
 
 ## Figure Gallery
 
@@ -40,21 +41,12 @@ offline operational metrics. SecureBERT-NER is selected for deployment.
 - [Literature and leakage](literature_and_leakage.md)
 - [Dataset-size scaling](dataset_size_scaling.md)
 - [Operational metrics](operational_metrics.md)
-- [Final model selection](final_selection.md)
+- [Evidence leader summary](final_selection.md)
 
 ## Reproduction
 
 ```bash
-python benchmark.py \
-  --dnrti-dir /path/to/DNRTI-extracted \
-  --out-dir reports/fork1 \
-  --split test \
-  --models securebert,cyner \
-  --subset-sizes 10,100,all \
-  --offline \
-  --cache-dir model_cache/fork1 \
-  --device auto
-python scripts/generate_fork1_report_assets.py
+make reproduce
 ```
 
 ## Dataset Snapshot

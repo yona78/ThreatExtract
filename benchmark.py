@@ -570,7 +570,7 @@ def write_final_selection(
     path.parent.mkdir(parents=True, exist_ok=True)
     selected = select_winner(results)
     lines = [
-        "# Final Model Selection",
+        "# Evidence Leader Summary",
         "",
     ]
     if selected["winner"] is None:
@@ -590,9 +590,10 @@ def write_final_selection(
     relaxed = winner_row["metrics"]["relaxed"]  # type: ignore[index]
     lines.extend(
         [
-            f"Decision: deploy **{winner}**.",
+            f"Evidence leader: **{winner}**.",
             "",
-            f"Selection basis: {selected['basis']}.",
+            f"Evidence basis: {selected['basis']}.",
+            "Deployment selection is intentionally left to the reviewer/product owner.",
             "",
             "## Headline Evidence",
             "",
