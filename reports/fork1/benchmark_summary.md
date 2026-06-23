@@ -42,12 +42,13 @@ The raw PDF-mapping gap is 0.1785. The oracle ceiling gap is 0.0992 (55.6% of th
 
 ## Operational Profile
 
-CPU deployment note: at 256 tokens and batch=1, SecureBERT p50 latency is 75.24 ms vs CyNER 124.69 ms (1.66x faster), with RSS 291.0 MB vs 780.7 MB.
+CPU deployment note: at 256 tokens and batch=1, SecureBERT p50 latency is 115.64 ms vs CyNER 129.23 ms (1.12x faster), with RSS 408.0 MB vs 1564.1 MB.
 
 ## Reliability
 
 securebert ECE 0.6520, precision>=0.90 threshold unreachable; cyner ECE 0.7044, precision>=0.90 threshold unreachable.
 Robustness perturbations preserve a positive SecureBERT gap, but random casing sharply reduces both models and should be normalized or monitored upstream.
+TODO: rerun E9 robustness after the perturbation RNG fix; the long rerun was intentionally skipped in the cleanup pass.
 
 ## Threats To Validity
 
@@ -55,6 +56,7 @@ Robustness perturbations preserve a positive SecureBERT gap, but random casing s
 - The label projection structurally favors SecureBERT; the bias adjustment is a ceiling-based sensitivity check, not proof of independent capability.
 - Energy is estimated where `powermetrics` is unavailable.
 - Raw confidence scores do not provide a precision>=0.90 operating point for either model.
+- Full `make reproduce` and MPS parity remain future reruns; see `reports/fork1/README.md`.
 
 ## Conclusion
 

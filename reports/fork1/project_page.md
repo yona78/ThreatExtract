@@ -7,7 +7,7 @@ data-leakage risk, and offline deployment constraints.
 
 We compare SecureBERT-NER and CyNER on DNRTI, a cybersecurity NER dataset
 whose taxonomy differs from both model taxonomies. The evaluation maps
-model outputs to DNRTI labels using the assignment PDF, then reports exact
+model outputs to DNRTI labels using the assignment PDF, then reports strict
 span F1, relaxed overlap F1, per-label behavior, subset-size stability, and
 offline operational metrics. SecureBERT-NER is the current evidence leader;
 deployment selection is intentionally left to the reviewer/product owner.
@@ -18,7 +18,7 @@ deployment selection is intentionally left to the reviewer/product owner.
 
 ![Model comparison](figures/model_comparison_metrics.svg)
 
-| Model | Exact F1 | Relaxed F1 | Exact recall | Elapsed s | RSS peak MB |
+| Model | Strict F1 | Relaxed F1 | Strict recall | Elapsed s | RSS peak MB |
 |---|---:|---:|---:|---:|---:|
 | SecureBERT-NER | 0.2823 | 0.5086 | 0.3820 | 24.140 | 812.765625 |
 | CyNER | 0.1047 | 0.2604 | 0.0928 | 27.400 | 948.53125 |

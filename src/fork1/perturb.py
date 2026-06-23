@@ -23,8 +23,9 @@ KEYBOARD_NEIGHBORS = {
 
 
 def random_case(seed: int) -> Callable[[str], str]:
+    rng = random.Random(seed)
+
     def perturb(text: str) -> str:
-        rng = random.Random(seed)
         return "".join(
             (
                 char.upper()
@@ -38,8 +39,9 @@ def random_case(seed: int) -> Callable[[str], str]:
 
 
 def keyboard_typo(rate: float, seed: int) -> Callable[[str], str]:
+    rng = random.Random(seed)
+
     def perturb(text: str) -> str:
-        rng = random.Random(seed)
         chars: list[str] = []
         for char in text:
             lower = char.lower()

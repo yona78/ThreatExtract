@@ -1,0 +1,4 @@
+{"f1": 0.47029005913827093, "false_negative": 1182, "false_positive": 699, "model": "securebert", "precision": 0.5443285528031291, "recall": 0.41398116013882, "support": 2017, "surface_status": "seen", "true_positive": 835}
+{"f1": 0.0442225392296719, "false_negative": 269, "false_positive": 2411, "model": "securebert", "precision": 0.02507076425394258, "recall": 0.18731117824773413, "support": 331, "surface_status": "unseen", "true_positive": 62}
+{"f1": 0.14443988510463684, "false_negative": 1841, "false_positive": 244, "model": "cyner", "precision": 0.41904761904761906, "recall": 0.0872583044124938, "support": 2017, "surface_status": "seen", "true_positive": 176}
+{"f1": 0.04634994206257242, "false_negative": 291, "false_positive": 1355, "model": "cyner", "precision": 0.02867383512544803, "recall": 0.12084592145015106, "support": 331, "surface_status": "unseen", "true_positive": 40}

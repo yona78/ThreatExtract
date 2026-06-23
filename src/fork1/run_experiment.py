@@ -26,7 +26,11 @@ from fork1.metrics import (
     bootstrap_gap_ci,
     corpus_f1,
     corpus_scores,
+    entity_confusion_rows,
+    entity_error_records,
     mcnemar,
+    oov_entity_rows,
+    per_label_strict_rows,
     sample_muc_counts,
 )
 from fork1.operational import make_workload, sample_power
@@ -785,6 +789,8 @@ def write_methodology_report(
     path: Path,
     rows: list[dict[str, object]],
     checks: list[dict[str, object]],
+    *,
+    per_label_rows: list[dict[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -804,6 +810,27 @@ def write_methodology_report(
             f"{int(row['partial'])} | {int(row['missing'])} | {int(row['spurious'])} |"
         )
 
+    if per_label_rows:
+        lines.extend(
+            [
+                "",
+                "## Per-Class Strict Metrics",
+                "",
+                "Projection-aware false positives are assigned to every mapped DNRTI label "
+                "for one-to-many model labels.",
+                "",
+                "| Model | Label | Support | TP | FP | FN | Precision | Recall | F1 |",
+                "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for row in per_label_rows:
+            lines.append(
+                f"| {row['model']} | {row['label']} | {int(row['support'])} | "
+                f"{int(row['true_positive'])} | {int(row['false_positive'])} | "
+                f"{int(row['false_negative'])} | {float(row['precision']):.4f} | "
+                f"{float(row['recall']):.4f} | {float(row['f1']):.4f} |"
+            )
+
     lines.extend(
         [
             "",
@@ -821,6 +848,73 @@ def write_methodology_report(
         )
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_error_analysis_report(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    counts = Counter((row["model"], row["bucket"]) for row in rows)
+    lines = [
+        "# Methodology Error Analysis",
+        "",
+        "Buckets use strict entity matching on the headline sentence-level, original-casing, "
+        "no-normalization protocol.",
+        "",
+        "## Bucket Counts",
+        "",
+        "| Model | Bucket | Count |",
+        "|---|---|---:|",
+    ]
+    for (model, bucket), count in sorted(counts.items()):
+        lines.append(f"| {model} | {bucket} | {count} |")
+
+    lines.extend(
+        [
+            "",
+            "## Example Rows",
+            "",
+            "| Model | Bucket | Sample | Gold | Predicted | Gold text | Predicted text |",
+            "|---|---|---|---|---|---|---|",
+        ]
+    )
+    seen_examples: Counter[tuple[object, object]] = Counter()
+    for row in rows:
+        key = (row["model"], row["bucket"])
+        if seen_examples[key] >= 5:
+            continue
+        seen_examples[key] += 1
+        lines.append(
+            f"| {row['model']} | {row['bucket']} | {row['sample_id']} | "
+            f"{row['gold_label']} | {row['predicted_label']} | "
+            f"{_escape_cell(row['gold_text'])} | {_escape_cell(row['predicted_text'])} |"
+        )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_oov_report(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Seen vs Unseen Entity Surface Analysis",
+        "",
+        "Entity surfaces are case-folded and whitespace-normalized before comparing train "
+        "entity strings with test entity strings.",
+        "",
+        "| Model | Surface status | Support | TP | FP | FN | Precision | Recall | F1 |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['model']} | {row['surface_status']} | {int(row['support'])} | "
+            f"{int(row['true_positive'])} | {int(row['false_positive'])} | "
+            f"{int(row['false_negative'])} | {float(row['precision']):.4f} | "
+            f"{float(row['recall']):.4f} | {float(row['f1']):.4f} |"
+        )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _escape_cell(value: object) -> str:
+    return html.escape(str(value)).replace("|", "\\|")
 
 
 def write_protocol_comparison_report(
@@ -1180,8 +1274,8 @@ def run_operational_eval(
     requested_device: str,
     token_lengths: tuple[int, ...] = (16, 32, 64, 128, 256),
     batch_sizes: tuple[int, ...] = (1, 8, 32),
-    warmup: int = 1,
-    repeats: int = 1,
+    warmup: int = 3,
+    repeats: int = 5,
     assumed_watts: float = 25.0,
 ) -> list[dict[str, object]]:
     samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
@@ -1277,6 +1371,7 @@ def run_methodology_eval(
     bootstrap: int | None = None,
 ) -> list[dict[str, object]]:
     samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    train_samples, _train_warnings, _train_stats = load_dnrti_dataset(dnrti_dir, "train")
     config = PRESETS["pdf_mapping"]
     if bootstrap is not None:
         config = replace(config, bootstrap=bootstrap)
@@ -1343,9 +1438,40 @@ def run_methodology_eval(
         seqeval_cross_check(prepared, predictions[model_name], model_name, config)
         for model_name in config.models
     ]
+    per_label_rows = [
+        row
+        for model_name in config.models
+        for row in per_label_strict_rows(prepared, predictions[model_name], model_name)
+    ]
+    confusion_rows = [
+        row
+        for model_name in config.models
+        for row in entity_confusion_rows(prepared, predictions[model_name], model_name)
+    ]
+    error_rows = [
+        row
+        for model_name in config.models
+        for row in entity_error_records(prepared, predictions[model_name], model_name)
+    ]
+    oov_rows = [
+        row
+        for model_name in config.models
+        for row in oov_entity_rows(train_samples, prepared, predictions[model_name], model_name)
+    ]
     write_jsonl(out_dir / "methodology_baseline.jsonl", rows)
     write_jsonl(out_dir / "methodology_seqeval_crosscheck.jsonl", checks)
-    write_methodology_report(out_dir / "methodology_baseline.md", rows, checks)
+    write_jsonl(out_dir / "methodology_per_label_strict.jsonl", per_label_rows)
+    write_jsonl(out_dir / "methodology_confusion_matrix.jsonl", confusion_rows)
+    write_jsonl(out_dir / "methodology_error_analysis.jsonl", error_rows)
+    write_jsonl(out_dir / "oov_entity_analysis.jsonl", oov_rows)
+    write_methodology_report(
+        out_dir / "methodology_baseline.md",
+        rows,
+        checks,
+        per_label_rows=per_label_rows,
+    )
+    write_error_analysis_report(out_dir / "methodology_error_analysis.md", error_rows)
+    write_oov_report(out_dir / "oov_entity_analysis.md", oov_rows)
     return rows
 
 

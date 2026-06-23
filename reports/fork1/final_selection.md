@@ -2,19 +2,19 @@
 
 Evidence leader: **SecureBERT-NER**.
 
-Evidence basis: full test split exact micro-F1.
+Evidence basis: full test split strict entity F1.
 Deployment selection is intentionally left to the reviewer/product owner.
 
 ## Headline Evidence
 
-- Full-test exact micro-F1: `0.2823`.
-- Full-test exact precision / recall: `0.2239` / `0.3820`.
+- Full-test strict entity F1: `0.2823`.
+- Full-test strict precision / recall: `0.2239` / `0.3820`.
 - Full-test relaxed F1: `0.5086`.
 - Inference elapsed on full test split: `24.140` seconds.
 
 ## Full-Test Comparison
 
-| Model | Exact F1 | Exact P | Exact R | Relaxed F1 | Elapsed s | RSS peak MB |
+| Model | Strict F1 | Strict P | Strict R | Relaxed F1 | Elapsed s | RSS peak MB |
 |---|---:|---:|---:|---:|---:|---:|
 | SecureBERT-NER | 0.2823 | 0.2239 | 0.3820 | 0.5086 | 24.140 | 812.765625 |
 | CyNER | 0.1047 | 0.1201 | 0.0928 | 0.2604 | 27.400 | 948.53125 |

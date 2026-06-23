@@ -140,10 +140,10 @@
     "subset::subset=random,size=all,seed=2::strict",
     "subset::subset=random,size=all,seed=3::strict"
   ],
-  "generated_at_utc": "2026-06-23T17:13:31.012144+00:00",
+  "generated_at_utc": "2026-06-23T17:43:31.749805+00:00",
   "git": {
-    "branch": "codex/fork1-deep-research",
-    "commit": "a132e17318c3eba8431074cf2ab711cc84da6d2b"
+    "branch": "main",
+    "commit": "4940df9c7d03ee24fb64268e753c980752fb7605"
   },
   "inputs": [
     {
@@ -169,12 +169,27 @@
     {
       "bytes": 56427,
       "path": "master_table.jsonl",
-      "sha256": "c196fcf225197843b096891439bcc3d46296683ecb2c07ef4bb39ec7d7e24295"
+      "sha256": "b60eed54218572a529b3fd8feadccdea279ef21f840ff1cdb2be631cf8a28d17"
     },
     {
       "bytes": 3411,
       "path": "methodology_baseline.jsonl",
-      "sha256": "66800704dca3a8c4735dbd7e5ddac644b78b0bcaddf33958d0d98e2a19b74508"
+      "sha256": "9a6d5222791ae0eb5d1ab44b34b4ceeb55155f5864f87f00d31945d68000e9eb"
+    },
+    {
+      "bytes": 10882,
+      "path": "methodology_confusion_matrix.jsonl",
+      "sha256": "0785047c9711bc568035c0522f07305e28b6ef5f7538227bdf490895aba637c6"
+    },
+    {
+      "bytes": 2158519,
+      "path": "methodology_error_analysis.jsonl",
+      "sha256": "f81f80797cd2e361d5265cebc4a2ab409d1cf5accbcac5ecb0913890252c67ab"
+    },
+    {
+      "bytes": 5114,
+      "path": "methodology_per_label_strict.jsonl",
+      "sha256": "3b02f3f9f9c0a6eac0b2aab99177363a184b39366706d26f6bce4d530cdfcf15"
     },
     {
       "bytes": 436,
@@ -182,9 +197,14 @@
       "sha256": "4d91e728e125c2089033fadf6c28aa0416730e5cced1ce230d8bad8c472e9431"
     },
     {
-      "bytes": 31124,
+      "bytes": 896,
+      "path": "oov_entity_analysis.jsonl",
+      "sha256": "53cf20987f80eace42da483e733d744a1a8d45fb1f770a924da82d76c0e38bfe"
+    },
+    {
+      "bytes": 15716,
       "path": "operational_envelope.jsonl",
-      "sha256": "336abc96ff858bf40952b39e39f0151ed217007c9cfbe40f494f4bc75cb3e34f"
+      "sha256": "9de6571983d1ebe733dda29f935c9773e317879b04fd9dcaeee3edda4e952b32"
     },
     {
       "bytes": 11496,

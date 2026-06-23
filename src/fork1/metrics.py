@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import math
 import random
+from collections import Counter
 from dataclasses import dataclass
 
-from fork1.mapping import map_model_label_to_dnrti
+from fork1.mapping import DNRTI_LABELS, map_model_label_to_dnrti
 
 
 @dataclass
@@ -26,6 +27,13 @@ def _exact(left, right) -> bool:
 
 def _type_ok(gold, pred, model_name: str) -> bool:
     return gold.label in map_model_label_to_dnrti(model_name, pred.label)
+
+
+def _mapped_label(model_name: str, pred, gold_label: str | None = None) -> str:
+    labels = sorted(map_model_label_to_dnrti(model_name, pred.label))
+    if gold_label is not None and gold_label in labels:
+        return gold_label
+    return "|".join(labels) if labels else "O/UNMAPPED"
 
 
 def muc_counts(gold_spans, pred_spans, model_name: str) -> dict[str, MucCounts]:
@@ -214,5 +222,241 @@ def mcnemar(samples, preds_a, preds_b, model_a: str, model_b: str) -> tuple[floa
         return 0.0, 1.0
 
     statistic = (abs(a_only - b_only) - 1) ** 2 / discordant
-    p_value = math.exp(-statistic / 2)
+    p_value = math.erfc(math.sqrt(statistic / 2))
     return statistic, p_value
+
+
+def _span_text(sample, span) -> str:
+    if span is None:
+        return ""
+    if span.text:
+        return span.text
+    return sample.text[span.start : span.end]
+
+
+def _surface_key(text: str) -> str:
+    return " ".join(text.casefold().split())
+
+
+def _matched_error_records_for_sample(
+    sample, pred_spans, model_name: str
+) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    used_gold: set[int] = set()
+    used_pred: set[int] = set()
+    ordered_preds = sorted(
+        enumerate(pred_spans),
+        key=lambda item: (-(item[1].score or 0.0), item[1].start, item[1].end),
+    )
+
+    for pred_index, pred in ordered_preds:
+        best = None
+        for gold_index, gold in enumerate(sample.gold_spans):
+            if gold_index in used_gold or not _overlap(gold, pred):
+                continue
+            best = (gold_index, gold)
+            break
+
+        if best is None:
+            continue
+
+        gold_index, gold = best
+        used_gold.add(gold_index)
+        used_pred.add(pred_index)
+        boundaries_match = _exact(gold, pred)
+        type_matches = _type_ok(gold, pred, model_name)
+        if boundaries_match and type_matches:
+            bucket = "strict_correct"
+        elif not type_matches:
+            bucket = "type_error"
+        else:
+            bucket = "boundary_error"
+
+        records.append(
+            {
+                "model": model_name,
+                "sample_id": sample.sample_id,
+                "bucket": bucket,
+                "gold_label": gold.label,
+                "predicted_label": _mapped_label(model_name, pred, gold.label),
+                "gold_text": _span_text(sample, gold),
+                "predicted_text": _span_text(sample, pred),
+                "gold_start": gold.start,
+                "gold_end": gold.end,
+                "pred_start": pred.start,
+                "pred_end": pred.end,
+                "score": pred.score,
+            }
+        )
+
+    for gold_index, gold in enumerate(sample.gold_spans):
+        if gold_index in used_gold:
+            continue
+        records.append(
+            {
+                "model": model_name,
+                "sample_id": sample.sample_id,
+                "bucket": "strict_drop_fn",
+                "gold_label": gold.label,
+                "predicted_label": "O/MISSED",
+                "gold_text": _span_text(sample, gold),
+                "predicted_text": "",
+                "gold_start": gold.start,
+                "gold_end": gold.end,
+                "pred_start": None,
+                "pred_end": None,
+                "score": None,
+            }
+        )
+
+    for pred_index, pred in enumerate(pred_spans):
+        if pred_index in used_pred:
+            continue
+        records.append(
+            {
+                "model": model_name,
+                "sample_id": sample.sample_id,
+                "bucket": "spurious_fp",
+                "gold_label": "SPURIOUS",
+                "predicted_label": _mapped_label(model_name, pred),
+                "gold_text": "",
+                "predicted_text": _span_text(sample, pred),
+                "gold_start": None,
+                "gold_end": None,
+                "pred_start": pred.start,
+                "pred_end": pred.end,
+                "score": pred.score,
+            }
+        )
+
+    return records
+
+
+def entity_error_records(samples, preds, model_name: str) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for sample in samples:
+        rows.extend(
+            _matched_error_records_for_sample(
+                sample,
+                preds.get(sample.sample_id, []),
+                model_name,
+            )
+        )
+    return rows
+
+
+def entity_confusion_rows(samples, preds, model_name: str) -> list[dict[str, object]]:
+    counts = Counter(
+        (str(row["gold_label"]), str(row["predicted_label"]))
+        for row in entity_error_records(samples, preds, model_name)
+    )
+    return [
+        {
+            "model": model_name,
+            "gold_label": gold_label,
+            "predicted_label": predicted_label,
+            "count": count,
+        }
+        for (gold_label, predicted_label), count in sorted(counts.items())
+    ]
+
+
+def _predicted_labels_for_counts(predicted_label: str) -> list[str]:
+    if predicted_label in {"O/MISSED", "O/UNMAPPED"}:
+        return []
+    return predicted_label.split("|")
+
+
+def per_label_strict_rows(samples, preds, model_name: str) -> list[dict[str, object]]:
+    true_positive: Counter[str] = Counter()
+    false_positive: Counter[str] = Counter()
+    false_negative: Counter[str] = Counter()
+
+    for row in entity_error_records(samples, preds, model_name):
+        bucket = row["bucket"]
+        gold_label = str(row["gold_label"])
+        predicted_labels = _predicted_labels_for_counts(str(row["predicted_label"]))
+        if bucket == "strict_correct":
+            true_positive[gold_label] += 1
+        elif bucket == "strict_drop_fn":
+            false_negative[gold_label] += 1
+        elif bucket in {"type_error", "boundary_error"}:
+            false_negative[gold_label] += 1
+            false_positive.update(predicted_labels)
+        elif bucket == "spurious_fp":
+            false_positive.update(predicted_labels)
+
+    labels = sorted(DNRTI_LABELS | set(true_positive) | set(false_positive) | set(false_negative))
+    out = []
+    for label in labels:
+        tp = true_positive[label]
+        fp = false_positive[label]
+        fn = false_negative[label]
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+        out.append(
+            {
+                "model": model_name,
+                "label": label,
+                "support": tp + fn,
+                "true_positive": tp,
+                "false_positive": fp,
+                "false_negative": fn,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+            }
+        )
+    return out
+
+
+def oov_entity_rows(train_samples, test_samples, preds, model_name: str) -> list[dict[str, object]]:
+    train_surfaces = {
+        _surface_key(_span_text(sample, span))
+        for sample in train_samples
+        for span in sample.gold_spans
+        if _surface_key(_span_text(sample, span))
+    }
+    counts = {
+        "seen": Counter({"tp": 0, "fp": 0, "fn": 0}),
+        "unseen": Counter({"tp": 0, "fp": 0, "fn": 0}),
+    }
+
+    def status(text: str) -> str:
+        return "seen" if _surface_key(text) in train_surfaces else "unseen"
+
+    for row in entity_error_records(test_samples, preds, model_name):
+        bucket = row["bucket"]
+        if bucket == "strict_correct":
+            counts[status(str(row["gold_text"]))]["tp"] += 1
+        elif bucket == "strict_drop_fn":
+            counts[status(str(row["gold_text"]))]["fn"] += 1
+        elif bucket in {"type_error", "boundary_error"}:
+            counts[status(str(row["gold_text"]))]["fn"] += 1
+            counts[status(str(row["predicted_text"]))]["fp"] += 1
+        elif bucket == "spurious_fp":
+            counts[status(str(row["predicted_text"]))]["fp"] += 1
+
+    out = []
+    for surface_status in ("seen", "unseen"):
+        tp = counts[surface_status]["tp"]
+        fp = counts[surface_status]["fp"]
+        fn = counts[surface_status]["fn"]
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+        out.append(
+            {
+                "model": model_name,
+                "surface_status": surface_status,
+                "support": tp + fn,
+                "true_positive": tp,
+                "false_positive": fp,
+                "false_negative": fn,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+            }
+        )
+    return out

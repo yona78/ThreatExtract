@@ -120,11 +120,31 @@ def test_write_methodology_report_includes_four_scheme_table(tmp_path: Path) -> 
             "unique_gold_spans": 1,
         }
     ]
+    per_label_rows = [
+        {
+            "model": "securebert",
+            "label": "HackOrg",
+            "support": 1,
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+        }
+    ]
 
-    write_methodology_report(tmp_path / "methodology_baseline.md", rows, checks)
+    write_methodology_report(
+        tmp_path / "methodology_baseline.md",
+        rows,
+        checks,
+        per_label_rows=per_label_rows,
+    )
 
     text = (tmp_path / "methodology_baseline.md").read_text(encoding="utf-8")
     assert "| Model | Scheme | Precision | Recall | F1 |" in text
+    assert "Per-Class Strict Metrics" in text
+    assert "| securebert | HackOrg | 1 | 1 | 0 | 0 | 1.0000 | 1.0000 | 1.0000 |" in text
     assert "Seqeval Cross-Check" in text
     assert "securebert" in text
 
@@ -799,7 +819,16 @@ def test_run_methodology_eval_writes_baseline_and_crosscheck(monkeypatch, tmp_pa
     assert {row["scheme"] for row in rows} == {"strict", "exact", "partial", "type"}
     assert (tmp_path / "reports" / "methodology_baseline.jsonl").is_file()
     assert (tmp_path / "reports" / "methodology_seqeval_crosscheck.jsonl").is_file()
+    assert (tmp_path / "reports" / "methodology_per_label_strict.jsonl").is_file()
+    assert (tmp_path / "reports" / "methodology_confusion_matrix.jsonl").is_file()
+    assert (tmp_path / "reports" / "methodology_error_analysis.jsonl").is_file()
+    assert (tmp_path / "reports" / "oov_entity_analysis.jsonl").is_file()
     assert (tmp_path / "reports" / "methodology_baseline.md").is_file()
+
+
+def test_run_operational_eval_uses_more_than_single_warmup_and_repeat() -> None:
+    assert run_operational_eval.__kwdefaults__["warmup"] >= 3
+    assert run_operational_eval.__kwdefaults__["repeats"] >= 5
 
 
 def test_write_calibration_report_includes_ece_and_threshold(tmp_path: Path) -> None:

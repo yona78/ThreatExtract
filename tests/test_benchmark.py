@@ -157,4 +157,6 @@ def test_write_final_selection_reports_evidence_without_deploy_decision(tmp_path
 
     text = (tmp_path / "final_selection.md").read_text(encoding="utf-8")
     assert "Evidence leader: **securebert**." in text
+    assert "strict entity F1" in text
+    assert "exact micro-F1" not in text
     assert "Decision: deploy" not in text

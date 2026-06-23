@@ -514,7 +514,7 @@ def write_benchmark_summary(rows: list[dict[str, object]], stats: dict[str, obje
             f"{cyner['elapsed_seconds']:.3f}s |"
         ),
         "",
-        "SecureBERT wins under the primary metric, exact micro-F1, and the ranking",
+        "SecureBERT wins under the primary metric, strict entity F1, and the ranking",
         "is unchanged under relaxed boundary matching. That matters because relaxed",
         "matching is designed to absorb small tokenization or boundary differences;",
         "the conclusion is therefore not merely a boundary artifact.",
@@ -814,14 +814,14 @@ def write_final_selection(rows: list[dict[str, object]]) -> None:
         "",
         "Evidence leader: **SecureBERT-NER**.",
         "",
-        "Evidence basis: full test split exact micro-F1.",
+        "Evidence basis: full test split strict entity F1.",
         "Deployment selection is intentionally left to the reviewer/product owner.",
         "",
         "## Headline Evidence",
         "",
-        f"- Full-test exact micro-F1: `{metric(secure, 'exact', 'f1'):.4f}`.",
+        f"- Full-test strict entity F1: `{metric(secure, 'exact', 'f1'):.4f}`.",
         (
-            f"- Full-test exact precision / recall: "
+            f"- Full-test strict precision / recall: "
             f"`{metric(secure, 'exact', 'precision'):.4f}` / "
             f"`{metric(secure, 'exact', 'recall'):.4f}`."
         ),
@@ -830,7 +830,7 @@ def write_final_selection(rows: list[dict[str, object]]) -> None:
         "",
         "## Full-Test Comparison",
         "",
-        "| Model | Exact F1 | Exact P | Exact R | Relaxed F1 | Elapsed s | RSS peak MB |",
+        "| Model | Strict F1 | Strict P | Strict R | Relaxed F1 | Elapsed s | RSS peak MB |",
         "|---|---:|---:|---:|---:|---:|---:|",
         (
             f"| SecureBERT-NER | {metric(secure, 'exact', 'f1'):.4f} | "
@@ -879,7 +879,7 @@ def write_project_page(rows: list[dict[str, object]], stats: dict[str, object]) 
         "",
         "We compare SecureBERT-NER and CyNER on DNRTI, a cybersecurity NER dataset",
         "whose taxonomy differs from both model taxonomies. The evaluation maps",
-        "model outputs to DNRTI labels using the assignment PDF, then reports exact",
+        "model outputs to DNRTI labels using the assignment PDF, then reports strict",
         "span F1, relaxed overlap F1, per-label behavior, subset-size stability, and",
         "offline operational metrics. SecureBERT-NER is the current evidence leader;",
         "deployment selection is intentionally left to the reviewer/product owner.",
@@ -890,7 +890,7 @@ def write_project_page(rows: list[dict[str, object]], stats: dict[str, object]) 
         "",
         "![Model comparison](figures/model_comparison_metrics.svg)",
         "",
-        "| Model | Exact F1 | Relaxed F1 | Exact recall | Elapsed s | RSS peak MB |",
+        "| Model | Strict F1 | Relaxed F1 | Strict recall | Elapsed s | RSS peak MB |",
         "|---|---:|---:|---:|---:|---:|",
         (
             f"| SecureBERT-NER | {metric(secure, 'exact', 'f1'):.4f} | "

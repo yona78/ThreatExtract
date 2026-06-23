@@ -234,9 +234,9 @@ def select_winner(results: list[dict[str, object]]) -> dict[str, object]:
     return {
         "winner": winner_row["model"],
         "basis": (
-            "full test split exact micro-F1"
+            "full test split strict entity F1"
             if full_rows
-            else "largest evaluated subset exact micro-F1"
+            else "largest evaluated subset strict entity F1"
         ),
         "row": winner_row,
     }
@@ -504,7 +504,7 @@ def write_markdown_summary(
             "",
             "## Selection Rule",
             "",
-            "Prefer the model with the best exact micro-F1 on supported DNRTI labels, then",
+            "Prefer the model with the best strict entity F1 on supported DNRTI labels, then",
             "break ties by recall on high-value CTI classes (`HackOrg`, `SecTeam`, `Exp`,",
             "`Tool`, `SamFile`) and operational footprint. Penalize models that cannot",
             "represent assignment-required labels, especially `Time`, `Area`, `Purp`, and",
@@ -597,8 +597,8 @@ def write_final_selection(
             "",
             "## Headline Evidence",
             "",
-            f"- Full-test exact micro-F1: `{exact['f1']:.4f}`.",
-            f"- Full-test exact precision / recall: `{exact['precision']:.4f}` / "
+            f"- Full-test strict entity F1: `{exact['f1']:.4f}`.",
+            f"- Full-test strict precision / recall: `{exact['precision']:.4f}` / "
             f"`{exact['recall']:.4f}`.",
             f"- Full-test relaxed F1: `{relaxed['f1']:.4f}`.",
             f"- Inference elapsed on full test split: "
@@ -609,7 +609,7 @@ def write_final_selection(
     if len({row["model"] for row in results}) > 1:
         lines.extend(["## Full-Test Comparison", ""])
         lines.append(
-            "| Model | Exact F1 | Exact P | Exact R | Relaxed F1 | Elapsed s | RSS peak MB |"
+            "| Model | Strict F1 | Strict P | Strict R | Relaxed F1 | Elapsed s | RSS peak MB |"
         )
         lines.append("|---|---:|---:|---:|---:|---:|---:|")
         for row in sorted(
