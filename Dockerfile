@@ -49,6 +49,11 @@ COPY examples/ /app/examples/
 # to dynamically swap models without touching the code.
 ENV MODEL_PATH=/app/model_cache/CyberPeace-Institute__SecureBERT-NER
 
+# OCI metadata: links the published image to the GitHub repo, so it appears
+# under the repo's "Packages" and is pullable as ghcr.io/yona78/threatextract.
+LABEL org.opencontainers.image.source="https://github.com/yona78/ThreatExtract" \
+      org.opencontainers.image.description="Offline SecureBERT-NER threat-intel NER serving app (Streamlit)"
+
 EXPOSE 8501
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
