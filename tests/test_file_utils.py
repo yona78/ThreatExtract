@@ -31,7 +31,7 @@ def test_read_upload_enforces_size_limit():
 
 
 def test_validate_accepts_plain_text_and_returns_decoded():
-    raw = "APT29 deployed WellMess against 1.2.3.4".encode("utf-8")
+    raw = b"APT29 deployed WellMess against 1.2.3.4"
     assert validate_text_file("report.txt", raw) == "APT29 deployed WellMess against 1.2.3.4"
 
 

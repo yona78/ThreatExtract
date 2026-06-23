@@ -3,6 +3,7 @@
 # cover the pure helpers and file validation (the latter needs python-magic,
 # backed by the system libmagic library — installed separately in CI/Docker).
 black==24.10.0
-flake8==7.1.1
+ruff==0.8.4
 pytest==8.3.3
+pytest-cov==6.0.0
 python-magic==0.4.27

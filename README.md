@@ -137,20 +137,24 @@ The sidebar always shows which model is loaded and the classes it can detect.
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
 # lint + format + tests (exactly what CI runs)
-flake8 app.py src tests download_model.py
+ruff check app.py src tests download_model.py
 black --check app.py src tests download_model.py
-pytest
+pytest          # enforces ≥85% coverage on src/ automatically
 ```
 
-The unit tests cover file validation and the pure chunking/merge helpers with a
-stub tokenizer, so they run in well under a second with **no** torch/transformers
-needed — which is what keeps CI fast.
+The unit tests cover `src/config.py`, `src/file_utils.py`, and `src/ner_engine.py`
+(mocking the `transformers` stack so no model or torch is required). They run in
+well under a second with **no** torch/transformers installed.
+
+`pytest-cov` enforces a **≥85% coverage gate on `src/`** (excluding `src/ui.py`
+and `src/__init__.py`, which are thin Streamlit rendering wrappers). The gate is
+configured in `pyproject.toml` under `[tool.pytest.ini_options]`.
 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main` and every pull request:
-checkout → Python 3.11 → install `libmagic1` + `requirements-dev.txt` → `flake8`
-→ `black --check` → `pytest`.
+checkout → Python 3.11 → install `libmagic1` + `requirements-dev.txt` → `ruff`
+→ `black --check` → `pytest` (with the ≥85% coverage gate).
 
 ## Project structure
 
@@ -174,9 +178,9 @@ docs/superpowers/specs/   design spec
   runtime the app loads with `local_files_only=True` and the container sets
   `TRANSFORMERS_OFFLINE=1` / `HF_HUB_OFFLINE=1`, so no network call can occur.
 - **One file at a time**, per the assignment.
-- **Image size.** `model_cache/` can be large (some repos ship both `.bin` and
-  `.safetensors`); keep only the model(s) you intend to serve in `model_cache/`
-  before building.
+- **Image size.** `download_model.py` skips the redundant `pytorch_model.bin`
+  when a repo also ships `safetensors`, keeping the cache lean; otherwise keep
+  only the model(s) you intend to serve in `model_cache/` before building.
 
 ## License
 

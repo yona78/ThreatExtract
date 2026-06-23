@@ -21,13 +21,15 @@ import os
 import sys
 from pathlib import Path
 
-from huggingface_hub import snapshot_download
+# NOTE: ``huggingface_hub`` is imported lazily inside ``download()`` so the pure
+# helper ``build_ignore_patterns`` can be imported and unit-tested without it —
+# which keeps CI's test collection free of the runtime-only dependency.
 
 DEFAULT_MODEL = "CyberPeace-Institute/SecureBERT-NER"
 
-# Non-PyTorch weight formats we don't need — skipping them keeps the cache lean
+# Non-PyTorch weight formats we never need — skipping them keeps the cache lean
 # while staying model-agnostic for any PyTorch token-classification model.
-IGNORE_PATTERNS = [
+_BASE_IGNORE_PATTERNS = [
     "*.h5",
     "*.msgpack",
     "*.onnx",
@@ -35,6 +37,22 @@ IGNORE_PATTERNS = [
     "flax_model.*",
     "*.tflite",
 ]
+
+
+def build_ignore_patterns(repo_files: list[str]) -> list[str]:
+    """Return ignore patterns for ``snapshot_download`` based on what the repo contains.
+
+    Always excludes non-PyTorch weight formats (tf, flax, onnx, …).  When the
+    repo ships at least one ``*.safetensors`` file, also excludes the redundant
+    ``pytorch_model.bin`` / ``pytorch_model-*.bin`` shards so the download is
+    roughly halved without breaking models that ship *only* ``.bin`` weights.
+    """
+    patterns = list(_BASE_IGNORE_PATTERNS)
+    has_safetensors = any(f.endswith(".safetensors") for f in repo_files)
+    if has_safetensors:
+        patterns.append("pytorch_model.bin")
+        patterns.append("pytorch_model-*.bin")
+    return patterns
 
 
 def sanitize(repo_id: str) -> str:
@@ -61,13 +79,17 @@ def verify_snapshot(path: Path) -> dict:
 
 def download(model: str, out_dir: Path) -> Path:
     """Download ``model`` into ``out_dir/<sanitized_id>`` and verify it."""
+    from huggingface_hub import list_repo_files, snapshot_download
+
     target = out_dir / sanitize(model)
     target.mkdir(parents=True, exist_ok=True)
     print(f"Downloading '{model}' -> {target} ...")
+    repo_files = list(list_repo_files(model))
+    ignore_patterns = build_ignore_patterns(repo_files)
     snapshot_download(
         repo_id=model,
         local_dir=str(target),
-        ignore_patterns=IGNORE_PATTERNS,
+        ignore_patterns=ignore_patterns,
     )
     id2label = verify_snapshot(target)
     labels = ", ".join(sorted({str(v) for v in id2label.values()}))
