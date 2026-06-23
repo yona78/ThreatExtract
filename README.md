@@ -64,7 +64,8 @@ docker compose up --build
 open http://localhost:8501             # (Linux: xdg-open)
 ```
 
-That's it — the container now runs entirely on-prem with no network access.
+That's it — the container runs entirely on-prem with no network access. Stop it
+with `Ctrl-C` in that terminal (or run `docker compose down` from another).
 
 **Proof it's fully offline** — start it with networking disabled; the model still
 loads and Streamlit still serves (the model is baked in and loaded with
@@ -96,45 +97,64 @@ MODEL_PATH=./model_cache/CyberPeace-Institute__SecureBERT-NER \
 
 ---
 
-## Using the app — a worked example
+## Test the app
 
-With the app running, open <http://localhost:8501>:
+A ready-made report ships in the repo —
+[`examples/sample_report.txt`](examples/sample_report.txt). With the app open at
+<http://localhost:8501>:
 
-1. The **sidebar** lists the active model and every entity class it can detect —
-   confirmation that the UI adapts to whatever model you loaded.
-2. **Drag a `.txt` report** onto the upload zone (or click *Browse files*). A
-   ready-made one ships in this repo:
-   [`examples/sample_report.txt`](examples/sample_report.txt).
-3. The app validates the file (extension + real MIME + UTF-8), shows a
-   **progress bar** while it processes, then renders the results.
+1. **Check the sidebar.** It lists the loaded model and every entity class it can
+   detect — the UI adapts to whatever model is loaded (nothing is hardcoded).
+2. **Upload a report.** Drag `examples/sample_report.txt` onto the upload zone (or
+   click *Browse files*). Only one `.txt` file is processed at a time.
+3. **Watch it run.** The file is validated (extension + real MIME + UTF-8), a
+   progress bar appears, then the results render.
+4. **Read the results table** — exactly two columns, **Class Name** and
+   **Identified Entity**. The sample yields ~20 entities, for example:
 
-**What you get back** — for the sample report (APT29 / Cozy Bear deploying
-WellMess, a C2 domain and IP, exploiting Log4Shell), the model extracts entities
-such as:
+   | Class Name | Identified Entity |
+   |---|---|
+   | APT | APT29 |
+   | APT | Cozy Bear |
+   | MAL | WellMess |
+   | IDTY | government agencies |
+   | IP | 203.0.113.42 |
+   | VULID | CVE-2021-44228 |
+   | URL | http://malicious.example.net/payload.exe |
+   | MD5 | 5d41402abc4b2a76b9719d911017c592 |
+   | SECTEAM | CERT-EU |
+   | TOOL | Nmap |
 
-| Class Name | Identified Entity |
-|---|---|
-| APT | APT29 |
-| APT | Cozy Bear |
-| MAL | WellMess |
-| IDTY | government agencies |
-| IP | 203.0.113.42 |
-| VULID | CVE-2021-44228 |
-| URL | http://malicious.example.net/payload.exe |
-| MD5 | 5d41402abc4b2a76b9719d911017c592 |
-| SECTEAM | CERT-EU |
-| TOOL | Nmap |
+5. **Download the CSV** (button under the table) and/or expand **Highlighted
+   document** to see every entity color-coded inline:
 
-…and more (19 entities on this sample). The page also renders the original
-document with every entity **highlighted and color-coded by class**, a per-class
-summary with the processing latency, and a **Download results (CSV)** button:
+   ```csv
+   Class Name,Identified Entity
+   APT,APT29
+   MAL,WellMess
+   VULID,CVE-2021-44228
+   URL,http://malicious.example.net/payload.exe
+   ```
 
-```csv
-Class Name,Identified Entity
-APT,APT29
-MAL,WellMess
-VULID,CVE-2021-44228
-URL,http://malicious.example.net/payload.exe
+6. **Try the guardrail.** Rename a binary (say an image) to `something.txt` and
+   upload it — the app rejects it, because validation inspects the real file
+   content, not just the extension.
+
+**Prefer the terminal?** With the container running (named `threatextract`), you
+can confirm inference headlessly — no browser needed:
+
+```bash
+docker exec -i threatextract python - <<'PY'
+import sys, os
+sys.path.insert(0, "/app")
+from src.ner_engine import NerEngine
+engine = NerEngine(os.environ["MODEL_PATH"])
+text = open("/app/examples/sample_report.txt").read()
+entities = engine.extract_entities(text)
+print(f"{len(entities)} entities found")
+for ent in entities:
+    print(f"  {ent.class_name:8} {ent.text}")
+PY
 ```
 
 ## Swapping models (no code changes)
