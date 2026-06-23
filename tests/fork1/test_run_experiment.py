@@ -80,6 +80,34 @@ def test_prepare_samples_applies_named_perturbation_before_detok() -> None:
     assert prepared[0].gold_spans[0].text == "hxxp://1[.]1[.]1[.]1"
 
 
+def test_prepare_samples_applies_subset_config() -> None:
+    samples = [
+        Sample(
+            sample_id=f"test-{index}",
+            split="test",
+            index=index,
+            text=f"token{index}",
+            tokens=(f"token{index}",),
+            tags=("O",),
+            gold_spans=[],
+        )
+        for index in range(6)
+    ]
+
+    prepared = prepare_samples_for_config(
+        samples,
+        ExperimentConfig(
+            name="subset",
+            subset_strategy="random",
+            subset_size="2",
+            seed=11,
+        ),
+    )
+
+    assert len(prepared) == 2
+    assert [sample.index for sample in prepared] == sorted(sample.index for sample in prepared)
+
+
 class FakeRunner:
     def predict(self, text: str, max_length: int | None = None):
         assert text == "APT hit."

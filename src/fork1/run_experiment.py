@@ -18,6 +18,7 @@ from fork1.metrics import (
 from fork1.perturb import PERTURBATIONS, keyboard_typo, random_case
 from fork1.preprocess import DETOKENIZERS, iter_contexts, normalize_text
 from fork1.runner import MODEL_ALIASES, HfTokenClassificationRunner
+from fork1.subsets import sample_subset
 
 
 SWEEP_LEVELS = {
@@ -42,6 +43,7 @@ def iter_preprocessing_sweep_configs(base: ExperimentConfig = PRESETS["pdf_mappi
 
 
 def prepare_samples_for_config(samples: list[Sample], config: ExperimentConfig) -> list[Sample]:
+    samples = sample_subset(samples, config.subset_strategy, config.subset_size, config.seed)
     detokenizer = DETOKENIZERS[config.detok]
     perturbation = _resolve_perturbation(config.perturbation, config.seed)
     prepared: list[Sample] = []
