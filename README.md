@@ -85,6 +85,47 @@ MODEL_PATH=./model_cache/CyberPeace-Institute__SecureBERT-NER \
 
 ---
 
+## Using the app — a worked example
+
+With the app running, open <http://localhost:8501>:
+
+1. The **sidebar** lists the active model and every entity class it can detect —
+   confirmation that the UI adapts to whatever model you loaded.
+2. **Drag a `.txt` report** onto the upload zone (or click *Browse files*). A
+   ready-made one ships in this repo:
+   [`examples/sample_report.txt`](examples/sample_report.txt).
+3. The app validates the file (extension + real MIME + UTF-8), shows a
+   **progress bar** while it processes, then renders the results.
+
+**What you get back** — for the sample report (APT29 / Cozy Bear deploying
+WellMess, a C2 domain and IP, exploiting Log4Shell), the model extracts entities
+such as:
+
+| Class Name | Identified Entity |
+|---|---|
+| APT | APT29 |
+| APT | Cozy Bear |
+| MAL | WellMess |
+| IDTY | government agencies |
+| IP | 203.0.113.42 |
+| VULID | CVE-2021-44228 |
+| URL | http://malicious.example.net/payload.exe |
+| MD5 | 5d41402abc4b2a76b9719d911017c592 |
+| SECTEAM | CERT-EU |
+| TOOL | Nmap |
+
+…and more (19 entities on this sample). The page also renders the original
+document with every entity **highlighted and color-coded by class**, a per-class
+summary with the processing latency, and a **Download results (CSV)** button:
+
+```csv
+Class Name,Identified Entity
+APT,APT29
+MAL,WellMess
+VULID,CVE-2021-44228
+URL,http://malicious.example.net/payload.exe
+```
+
 ## Swapping models (no code changes)
 
 `download_model.py` takes any Hugging Face `token-classification` repo id:
