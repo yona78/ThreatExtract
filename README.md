@@ -1,116 +1,52 @@
 # ThreatExtract
 
-Model-agnostic **Named Entity Recognition (NER)** serving app for cyber-threat
-intelligence. Upload a `.txt` report and get a clean, color-coded breakdown of
-the entities a Hugging Face NER model finds in it — APT groups, malware,
-indicators (IPs, domains, hashes), CVEs, and more — running **fully offline**
-inside Docker.
+Model-agnostic **Named Entity Recognition (NER)** for cyber-threat intelligence.
+Upload a `.txt` report and get a color-coded breakdown of the entities a Hugging
+Face NER model finds in it — APT groups, malware, indicators (IPs, domains,
+hashes), CVEs, and more — running **fully offline** inside Docker.
 
-> Fork 2 of the MLE home assignment: the production-grade serving application.
-> Fork 1 (benchmarking SecureBERT-NER vs CyNER on the DNRTI dataset) lives
-> alongside it in this repo but is independent.
+The served model is **SecureBERT-NER** (`CyberPeace-Institute/SecureBERT-NER`),
+but the app is model-agnostic: entity classes are read at runtime from the
+model's own `config.json`, and the model is chosen purely via the `MODEL_PATH`
+environment variable — no code changes to swap it.
 
-![status](https://img.shields.io/badge/offline-on--prem-success)
+![offline](https://img.shields.io/badge/offline-on--prem-success)
 ![python](https://img.shields.io/badge/python-3.11-blue)
+[![container](https://img.shields.io/badge/ghcr.io-threatextract-2496ED?logo=docker)](https://github.com/yona78/ThreatExtract/pkgs/container/threatextract)
+
+> Fork 2 of the MLE home assignment — the serving app. Fork 1 (benchmarking
+> SecureBERT-NER vs CyNER on the DNRTI dataset) lives alongside it in this repo.
 
 ---
 
-## Why it's model-agnostic
+## Quickstart — run the prebuilt image
 
-The app serves **any** Hugging Face `token-classification` model. Entity classes
-are read at runtime from the model's own `config.json` (`id2label`) — nothing is
-hardcoded — and the model is selected purely via the `MODEL_PATH` environment
-variable. Swap SecureBERT-NER for CyNER (or anything else) by downloading it and
-changing one env var; the Python code never changes.
-
-## How it works
-
-```
-  download_model.py            Dockerfile                 app.py (Streamlit)
-  ─────────────────            ──────────                 ─────────────────
-  HF Hub ──(online,    ──►  COPY model_cache/   ──►   load MODEL_PATH offline
-  pre-build)── ./model_cache/   into the image          (local_files_only)
-                                                          │
-   upload .txt ─► validate (ext + real MIME + UTF-8) ─► chunk ─► infer ─► merge
-                                                          │
-                              results table + CSV + highlighted document
-```
-
-- **Pre-build (online, once):** `download_model.py` snapshot-downloads a model
-  into `./model_cache/<sanitized_id>/` and verifies it.
-- **Build:** the `Dockerfile` `COPY`s only the **chosen model's** directory in —
-  it never reaches the network at build or run time, and the other fork's cache
-  plus training-checkpoint artifacts are left out, so the image stays lean.
-- **Runtime (offline):** the Streamlit app loads the model from the local cache
-  (`local_files_only=True`, plus `TRANSFORMERS_OFFLINE=1`).
-
----
-
-## Quickstart (Docker — recommended)
-
-Prerequisite: Docker / Docker Compose. You also need Python 3.11 once, to run the
-pre-build download step.
+The image is published to this repo's **GitHub Container Registry**, with the
+SecureBERT-NER model already baked in. One command pulls and runs it — Docker
+fetches it once, then it serves fully offline:
 
 ```bash
-# 1) Download the model into ./model_cache/ (online, one time)
-python -m venv .venv && source .venv/bin/activate
-pip install huggingface_hub            # (or: pip install -r requirements.txt)
-python download_model.py               # default: CyberPeace-Institute/SecureBERT-NER
-
-# 2) Build the offline image and run it
-docker compose up --build
-
-# 3) Open the app
-open http://localhost:8501             # (Linux: xdg-open)
+docker run --rm -p 8501:8501 ghcr.io/yona78/threatextract:latest
 ```
 
-That's it — the container runs entirely on-prem with no network access. Stop it
-with `Ctrl-C` in that terminal (or run `docker compose down` from another).
+Then open **http://localhost:8501**. `Ctrl-C` to stop.
 
-**Proof it's fully offline** — start it with networking disabled; the model still
-loads and Streamlit still serves (the model is baked in and loaded with
-`local_files_only=True`):
+> **Auth error on pull?** The package is private — either make it public
+> (repo → **Packages** → *threatextract* → visibility → Public) or run
+> `docker login ghcr.io -u <user>` with a token first.
 
-```bash
-docker run -d --name te --network none threatextract:latest
-docker exec te curl -fsS http://localhost:8501/_stcore/health   # -> ok
-docker rm -f te
-```
+## Using the app
 
-## Quickstart (local, no Docker)
+A sample report ships in both the repo and the image:
+[`examples/sample_report.txt`](examples/sample_report.txt).
 
-On macOS (Apple Silicon / M-series) you need the `libmagic` system library so
-`python-magic` can sniff file types:
-
-```bash
-brew install libmagic                  # macOS — REQUIRED, or python-magic crashes
-# (Debian/Ubuntu: sudo apt-get install -y libmagic1)
-
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-python download_model.py               # populates ./model_cache/
-
-MODEL_PATH=./model_cache/CyberPeace-Institute__SecureBERT-NER \
-  streamlit run app.py
-```
-
----
-
-## Test the app
-
-A ready-made report ships in the repo —
-[`examples/sample_report.txt`](examples/sample_report.txt). With the app open at
-<http://localhost:8501>:
-
-1. **Check the sidebar.** It lists the loaded model and every entity class it can
-   detect — the UI adapts to whatever model is loaded (nothing is hardcoded).
-2. **Upload a report.** Drag `examples/sample_report.txt` onto the upload zone (or
-   click *Browse files*). Only one `.txt` file is processed at a time.
-3. **Watch it run.** The file is validated (extension + real MIME + UTF-8), a
-   progress bar appears, then the results render.
-4. **Read the results table** — exactly two columns, **Class Name** and
-   **Identified Entity**. The sample yields ~20 entities, for example:
+1. The **sidebar** lists the loaded model and every entity class it can detect —
+   the UI adapts to whatever model is loaded (nothing is hardcoded).
+2. **Upload** a `.txt` report — drag-and-drop or *Browse files*. One file at a time.
+3. The file is validated (extension **+** real MIME type via `libmagic` **+** UTF-8),
+   a progress bar runs, then the results render.
+4. **Results table** — exactly two columns, **Class Name** and **Identified
+   Entity**. The sample yields ~20 entities, e.g.:
 
    | Class Name | Identified Entity |
    |---|---|
@@ -125,55 +61,71 @@ A ready-made report ships in the repo —
    | SECTEAM | CERT-EU |
    | TOOL | Nmap |
 
-5. **Download the CSV** (button under the table) and/or expand **Highlighted
-   document** to see every entity color-coded inline:
+5. **Download the CSV** (button under the table) and expand **Highlighted
+   document** to see every entity color-coded inline.
+6. **Guardrail:** rename a binary (say an image) to `something.txt` and upload it —
+   the app rejects it, because validation inspects the real content, not the name.
 
-   ```csv
-   Class Name,Identified Entity
-   APT,APT29
-   MAL,WellMess
-   VULID,CVE-2021-44228
-   URL,http://malicious.example.net/payload.exe
-   ```
-
-6. **Try the guardrail.** Rename a binary (say an image) to `something.txt` and
-   upload it — the app rejects it, because validation inspects the real file
-   content, not just the extension.
-
-**Prefer the terminal?** With the container running (named `threatextract`), you
-can confirm inference headlessly — no browser needed:
+Prefer the terminal? Confirm inference headlessly (container named `threatextract`):
 
 ```bash
 docker exec -i threatextract python - <<'PY'
-import sys, os
+import os, sys
 sys.path.insert(0, "/app")
 from src.ner_engine import NerEngine
 engine = NerEngine(os.environ["MODEL_PATH"])
-text = open("/app/examples/sample_report.txt").read()
-entities = engine.extract_entities(text)
-print(f"{len(entities)} entities found")
+entities = engine.extract_entities(open("/app/examples/sample_report.txt").read())
+print(f"{len(entities)} entities")
 for ent in entities:
     print(f"  {ent.class_name:8} {ent.text}")
 PY
 ```
 
-## Swapping models (no code changes)
+## Build it yourself (Docker)
 
-`download_model.py` takes any Hugging Face `token-classification` repo id:
+To rebuild from source — e.g. to bake in a different model — download the model
+once (online), then build the offline image:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install huggingface_hub                 # or: pip install -r requirements.txt
+python download_model.py                    # default: CyberPeace-Institute/SecureBERT-NER
+
+docker compose up --build                   # builds the offline image, serves on :8501
+```
+
+The model is fetched **before** the build and baked into the image, so the
+container never touches the network. Prove it by running with networking off:
+
+```bash
+docker run -d --name te --network none threatextract:latest
+docker exec te curl -fsS http://localhost:8501/_stcore/health   # -> ok
+docker rm -f te
+```
+
+(`docker run --rm -p 8501:8501 threatextract:latest` runs the local image without
+Compose.)
+
+## Run without Docker
+
+```bash
+brew install libmagic                        # macOS (Debian/Ubuntu: apt-get install -y libmagic1)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python download_model.py
+MODEL_PATH=./model_cache/CyberPeace-Institute__SecureBERT-NER streamlit run app.py
+```
+
+## Swap the model (no code changes)
+
+`download_model.py` accepts any Hugging Face `token-classification` repo id:
 
 ```bash
 python download_model.py --model AI4Sec/cyner-xlm-roberta-large
-# or:  MODEL_NAME=<repo_id> python download_model.py
+# then point MODEL_PATH at the printed directory (docker-compose.yml or the shell)
 ```
 
-It prints the `MODEL_PATH` to use. Then either set it in `docker-compose.yml`
-(the `MODEL_PATH` env) or pass it at runtime:
-
-```bash
-MODEL_PATH=./model_cache/AI4Sec__cyner-xlm-roberta-large streamlit run app.py
-```
-
-The sidebar always shows which model is loaded and the classes it can detect.
+The sidebar always reflects the loaded model and its classes.
 
 ## Configuration
 
@@ -186,103 +138,66 @@ The sidebar always shows which model is loaded and the classes it can detect.
 | `AGGREGATION_STRATEGY` | runtime | HF pipeline aggregation | `simple` |
 | `TRANSFORMERS_OFFLINE`, `HF_HUB_OFFLINE` | runtime | force offline | `1` (in Docker) |
 
-## Features
+## How it works
 
-- **Strict, content-based file validation.** Only `.txt` is accepted, verified by
-  extension **and** real MIME type via `libmagic` (not just the name) **and** a
-  UTF-8 decode — so a binary renamed to `.txt` is rejected.
-- **Handles large files.** The upload is read fully into memory, then split into
-  token-aligned overlapping chunks so nothing is lost to the model's token limit;
-  entity character-offsets are remapped back to the whole document, and a live
-  `st.progress` bar reports chunk-by-chunk progress.
-- **Clean entities.** Piecewise model output (`CVE` `-` `2021` …) is stitched into
-  whole entities (`CVE-2021-44228`), and surrounding whitespace is trimmed from
-  every span (so a token that opens a new line never shows up as `"\nNmap"`).
-- **Premium UI.** A dark "threat console" theme, per-class color coding derived
-  from the class name (works for any model), a results table (**Class Name** /
-  **Identified Entity**), per-class summary chips, latency, **CSV download**, and a
-  highlighted source document with inline entity chips.
+```
+download_model.py        Dockerfile                 app.py (Streamlit)
+─────────────────        ──────────                 ──────────────────
+HF Hub ─(online,   ─►  bake the chosen model  ─►  load MODEL_PATH offline
+ once)─ model_cache/    dir into the image          (local_files_only=True)
 
----
+upload .txt ─► validate ─► chunk (token-aligned, overlapping) ─► infer ─► merge
+            ─► results table + CSV + highlighted document
+```
+
+- **Offline by construction.** The model is downloaded before the build and
+  `COPY`-ed in; at runtime `local_files_only=True` plus `TRANSFORMERS_OFFLINE=1` /
+  `HF_HUB_OFFLINE=1` guarantee no network call can occur.
+- **Long documents** are split into overlapping, token-aligned chunks so nothing
+  is lost to the model's token limit; entity offsets are remapped to the full document.
+- **Clean entities.** Piecewise output (`CVE` `-` `2021` …) is stitched into whole
+  entities (`CVE-2021-44228`), and surrounding whitespace is trimmed from each span.
 
 ## Development
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-# lint + format + tests (exactly what CI runs)
 ruff check app.py src tests download_model.py
 black --check app.py src tests download_model.py
-pytest          # enforces ≥85% coverage on src/ automatically
+pytest                                       # enforces a ≥85% coverage gate on src/
 ```
 
-The unit tests cover `src/config.py`, `src/file_utils.py`, and `src/ner_engine.py`
-(mocking the `transformers` stack so no model or torch is required). They run in
-well under a second with **no** torch/transformers installed.
-
-`pytest-cov` enforces a **≥85% coverage gate on `src/`** (excluding `src/ui.py`
-and `src/__init__.py`, which are thin Streamlit rendering wrappers). The gate is
-configured in `pyproject.toml` under `[tool.pytest.ini_options]`.
-
-## Continuous integration
-
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
-checkout → Python 3.11 → install `libmagic1` + `requirements-dev.txt` → `ruff`
-→ `black --check` → `pytest` (with the ≥85% coverage gate).
+Unit tests mock the `transformers` stack, so they run in under a second with no
+torch or model needed. CI (`.github/workflows/ci.yml`) runs ruff + black + pytest
+on every push to `main` and every pull request.
 
 ## Project structure
 
 ```
-app.py                  Streamlit UI (thin; delegates to src/)
-src/config.py           env-driven settings
-src/ner_engine.py       model-agnostic load + chunk + infer + merge
-src/file_utils.py       .txt + real-MIME + UTF-8 validation
-download_model.py       pre-build model fetch into ./model_cache/
-Dockerfile              offline image (COPYs the chosen model dir)
-docker-compose.yml      MODEL_PATH = the dynamic model-swap point
-assets/styles.css       "threat console" theme
-tests/                  unit tests (no model needed)
-.github/workflows/ci.yml  lint + tests
-docs/superpowers/specs/   design spec
+app.py              Streamlit UI (thin; delegates to src/)
+src/ner_engine.py   model-agnostic load + chunk + infer + merge
+src/file_utils.py   .txt + real-MIME + UTF-8 validation
+src/config.py       env-driven settings
+download_model.py   pre-build model fetch into ./model_cache/
+Dockerfile          offline image (bakes only the chosen model)
+docker-compose.yml  run config + the model-swap point
+examples/           sample threat report
+tests/              unit tests (mocked; no torch/model required)
 ```
 
-## Notes & considerations
+## Notes
 
-- **Offline guarantee.** The model enters the image only via the `COPY` of its
-  directory. At runtime the app loads with `local_files_only=True` and the
-  container sets `TRANSFORMERS_OFFLINE=1` / `HF_HUB_OFFLINE=1`, so no network
-  call can occur — the container needs neither host files nor a network.
 - **One file at a time**, per the assignment.
-- **Image size (~2.7 GB).** Only the chosen model's directory is baked in, and
+- **Image ~2.7 GB.** Only the chosen model's directory is baked in;
   `download_model.py` skips the redundant `pytorch_model.bin` (when `safetensors`
-  is present) plus the training-checkpoint artifacts (optimizer / scheduler / RNG
-  / trainer state) some repos ship — trimming SecureBERT-NER's on-disk payload
-  from ~2 GB to ~480 MB. The remainder is the unavoidable CPU `torch` +
-  `transformers` + Streamlit runtime.
+  is present) and training-checkpoint artifacts (optimizer / scheduler / RNG /
+  trainer state) — trimming SecureBERT-NER's payload from ~2 GB to ~480 MB. The
+  rest is the unavoidable CPU `torch` + `transformers` + Streamlit runtime.
 
-## Fork 1 Research Reproduction
+## Fork 1 — benchmarking
 
-Fork 1 compares frozen SecureBERT-NER and CyNER on DNRTI using the local offline
-cache. Keep research-only dependencies out of the Docker runtime; `make
-reproduce` installs the pinned research dependencies into `.venv` once, then all
-model inference reads local DNRTI/model-cache files:
-
-```bash
-make reproduce
-```
-
-Useful overrides:
-
-```bash
-make reproduce DNRTI_DIR=data/dnrti CACHE_DIR=model_cache/fork1 DEVICE=mps
-make e11
-```
-
-`DEVICE` defaults to `cpu` for portable reproduction; pass `DEVICE=mps` to
-rerun the accuracy sweeps on Apple MPS. The operational target always measures
-both CPU and MPS when MPS is visible.
-
-The final paper-style report is `reports/fork1/benchmark_summary.md`; the master
-table is `reports/fork1/master_table.jsonl`.
+Fork 1 compares SecureBERT-NER vs CyNER on the DNRTI dataset, fully offline. See
+`make reproduce` and the reports under `reports/fork1/`.
 
 ## License
 
