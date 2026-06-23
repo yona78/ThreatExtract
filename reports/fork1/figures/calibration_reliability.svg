@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+<rect width="100%" height="100%" fill="white"/>
+<text x="24" y="24" font-family="Arial" font-size="16" font-weight="700">Reliability Diagram</text>
+<line x1="60" y1="308" x2="320" y2="308" stroke="#444"/>
+<line x1="60" y1="308" x2="60" y2="30" stroke="#444"/>
+<line x1="60" y1="308" x2="320" y2="48" stroke="#999" stroke-dasharray="4 4"/>
+<polyline fill="none" stroke="#2f6fbb" stroke-width="2" points="130.5,308.0 152.9,308.0 176.9,277.2 202.6,282.9 229.9,253.0 255.7,258.2 285.9,223.1 298.8,253.3"/>
+<circle cx="130.5" cy="308.0" r="3" fill="#2f6fbb"/>
+<circle cx="152.9" cy="308.0" r="3" fill="#2f6fbb"/>
+<circle cx="176.9" cy="277.2" r="3" fill="#2f6fbb"/>
+<circle cx="202.6" cy="282.9" r="3" fill="#2f6fbb"/>
+<circle cx="229.9" cy="253.0" r="3" fill="#2f6fbb"/>
+<circle cx="255.7" cy="258.2" r="3" fill="#2f6fbb"/>
+<circle cx="285.9" cy="223.1" r="3" fill="#2f6fbb"/>
+<circle cx="298.8" cy="253.3" r="3" fill="#2f6fbb"/>
+<text x="344" y="70" font-family="Arial" font-size="12" fill="#2f6fbb">securebert</text>
+<polyline fill="none" stroke="#c45746" stroke-width="2" points="128.5,308.0 153.5,308.0 178.4,308.0 205.4,295.9 229.1,299.0 256.9,279.5 281.3,259.0 311.5,270.6"/>
+<circle cx="128.5" cy="308.0" r="3" fill="#c45746"/>
+<circle cx="153.5" cy="308.0" r="3" fill="#c45746"/>
+<circle cx="178.4" cy="308.0" r="3" fill="#c45746"/>
+<circle cx="205.4" cy="295.9" r="3" fill="#c45746"/>
+<circle cx="229.1" cy="299.0" r="3" fill="#c45746"/>
+<circle cx="256.9" cy="279.5" r="3" fill="#c45746"/>
+<circle cx="281.3" cy="259.0" r="3" fill="#c45746"/>
+<circle cx="311.5" cy="270.6" r="3" fill="#c45746"/>
+<text x="344" y="270" font-family="Arial" font-size="12" fill="#c45746">cyner</text>
+</svg>

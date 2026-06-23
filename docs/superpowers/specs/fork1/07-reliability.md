@@ -25,9 +25,11 @@
 - Refang was a no-op on this DNRTI test run for both models: ΔF1 0.0000 with [0.0000, 0.0000] intervals.
 - Random casing was the strongest perturbation for both models. SecureBERT dropped from 0.2823 to 0.0296, ΔF1 -0.2527 ([-0.2766, -0.2300]); CyNER dropped from 0.1038 to 0.0058, ΔF1 -0.0980 ([-0.1130, -0.0836]). SecureBERT still led, but the gap narrowed sharply.
 - Keyboard typos hurt SecureBERT more in absolute F1: 0.2823 to 0.2177, ΔF1 -0.0645 ([-0.0765, -0.0535]). CyNER was statistically unchanged under this perturbation: 0.1038 to 0.1025, ΔF1 -0.0012 ([-0.0097, 0.0070]).
-- Calibration (E10): pending. ECE, reliability bins, and high-precision threshold sweeps have not been run yet.
+- Calibration (E10): both confidence streams are badly miscalibrated. SecureBERT has lower ECE than CyNER (0.6520 vs 0.7044), but neither score scale is trustworthy as an analyst triage probability.
+- The high-precision threshold requirement is unreachable for both models. SecureBERT's threshold sweep peaks at only 0.2322 precision with 0.3505 recall at threshold 0.80; thresholds 0.95 and 0.99 produce no predictions. CyNER peaks at 0.1557 precision with 0.0860 recall at threshold 0.75, and remains only 0.1460 precision at threshold 0.95.
+- At no threshold does CyNER overtake SecureBERT on a useful precision/recall operating point. SecureBERT produces more entity predictions (4007 vs 1815), more strict true positives at threshold 0.0 (897 vs 218), and higher recall (0.3820 vs 0.0928), but the absolute precision remains too low for a high-confidence alerting lane.
 
 ## Conclusion → contribution to model choice
 - Robustness vote: SecureBERT remains the better model by noisy strict F1 because every perturbation preserves a positive gap with a 95% CI excluding 0. The caveat is brittleness: SecureBERT loses far more absolute F1 under random casing and keyboard typos, while CyNER starts much lower and therefore has less absolute score to lose.
-- High-precision analyst triage: no vote yet. Calibration and threshold evidence are still pending.
-- Direction 07 vote toward final decision: provisional SecureBERT on robustness-only evidence; final Direction 07 vote is pending E10 calibration.
+- High-precision analyst triage: no model is acceptable from raw confidence thresholding. If the product needs precision>=0.90, this study supports adding an external calibration/abstention layer or human-review rule rather than trusting either frozen model's `score`.
+- Direction 07 vote toward final decision: SecureBERT, because it keeps the positive noisy-F1 gap under every perturbation and is slightly less miscalibrated. The vote is caveated: raw confidence is not deployment-ready for either model, so SecureBERT's advantage is robustness and relative calibration, not a usable high-precision triage threshold.
