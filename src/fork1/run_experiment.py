@@ -44,7 +44,6 @@ from fork1.runner import (
 )
 from fork1.subsets import sample_subset
 
-
 SWEEP_LEVELS = {
     "detok": ("single_space", "punct_aware"),
     "context": ("sentence", "document", "window"),

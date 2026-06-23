@@ -6,7 +6,6 @@ from math import floor
 
 from fork1.data import Sample
 
-
 STRATEGIES = frozenset({"random", "label_stratified", "density", "length", "hardness"})
 RARE_LABELS = frozenset({"Way", "Purp", "Features"})
 

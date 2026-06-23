@@ -7,12 +7,11 @@ import platform
 import subprocess
 import sys
 from dataclasses import asdict, is_dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fork1.data import load_dnrti_dataset
-
 
 COMPARISON_FILES = {
     "methodology": "methodology_baseline.jsonl",
@@ -47,9 +46,9 @@ def jsonable(value: Any) -> Any:
         return jsonable(asdict(value))
     if isinstance(value, dict):
         return {str(key): jsonable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [jsonable(item) for item in value]
-    if isinstance(value, (str, int, float, bool)) or value is None:
+    if isinstance(value, str | int | float | bool) or value is None:
         return value
     return str(value)
 
@@ -468,7 +467,7 @@ def write_run_metadata(
 ) -> None:
     jsonl_files = sorted(reports_dir.glob("*.jsonl"))
     metadata = {
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
         "git": _git_info(Path.cwd()),
         "environment": _environment(),
         "dataset": _dataset_stats(dnrti_dir),

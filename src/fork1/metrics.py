@@ -211,7 +211,7 @@ def mcnemar(samples, preds_a, preds_b, model_a: str, model_b: str) -> tuple[floa
             preds_b.get(sample.sample_id, []),
             model_b,
         )
-        for is_a_correct, is_b_correct in zip(correct_a, correct_b):
+        for is_a_correct, is_b_correct in zip(correct_a, correct_b, strict=False):
             if is_a_correct and not is_b_correct:
                 a_only += 1
             elif is_b_correct and not is_a_correct:

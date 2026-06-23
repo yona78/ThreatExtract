@@ -11,7 +11,6 @@ from typing import Protocol
 from fork1.data import Span
 from fork1.mapping import strip_bio
 
-
 SECUREBERT_MODEL = "CyberPeace-Institute/SecureBERT-NER"
 CYNER_MODEL = "AI4Sec/cyner-xlm-roberta-base"
 MODEL_ALIASES = {"securebert": SECUREBERT_MODEL, "cyner": CYNER_MODEL}

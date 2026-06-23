@@ -5,7 +5,6 @@ from collections.abc import Callable
 
 from fork1.preprocess import defang, refang
 
-
 KEYBOARD_NEIGHBORS = {
     "a": "qswsz",
     "c": "xdfv",

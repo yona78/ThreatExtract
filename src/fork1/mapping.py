@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 SECUREBERT_TO_DNRTI: dict[str, set[str]] = {
     "APT": {"HackOrg"},
     "SECTEAM": {"SecTeam"},

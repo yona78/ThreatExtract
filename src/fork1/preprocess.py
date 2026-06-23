@@ -5,7 +5,6 @@ import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 
-
 Detokenizer = Callable[[list[str]], tuple[str, list[tuple[int, int]]]]
 
 NO_SPACE_BEFORE = set(".,;:!?)]}%") | {"'s", "n't", "'re", "'ll", "'ve", "'m", "'d"}
@@ -64,7 +63,11 @@ class ContextDoc:
     def token_refs_for_span(self, start: int, end: int) -> list[tuple[str, int]]:
         return [
             ref
-            for (token_start, token_end), ref in zip(self.token_offsets, self.token_refs)
+            for (token_start, token_end), ref in zip(
+                self.token_offsets,
+                self.token_refs,
+                strict=False,
+            )
             if max(start, token_start) < min(end, token_end)
         ]
 

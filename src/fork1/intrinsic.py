@@ -5,7 +5,6 @@ from collections.abc import Iterable
 from fork1.data import Sample
 from fork1.mapping import CYNER_TO_DNRTI, SECUREBERT_TO_DNRTI
 
-
 CYBER_PROBE_WORDS = (
     "ransomware",
     "C2",

@@ -5,7 +5,6 @@ import subprocess
 import time
 from statistics import mean
 
-
 DEFAULT_TOKEN_POOL = (
     "threat",
     "actor",

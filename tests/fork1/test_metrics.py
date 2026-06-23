@@ -2,6 +2,7 @@ import math
 
 from fork1.data import Sample, Span
 from fork1.metrics import (
+    bootstrap_count_gap_ci,
     bootstrap_gap_ci,
     corpus_f1,
     corpus_scores,
@@ -13,7 +14,6 @@ from fork1.metrics import (
     sample_muc_counts,
     score,
 )
-from fork1.metrics import bootstrap_count_gap_ci
 
 
 def _g(start: int, end: int, label: str, text: str = "") -> Span:

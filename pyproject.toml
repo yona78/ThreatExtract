@@ -30,6 +30,10 @@ exclude = ["model_cache", ".venv", "docs"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/fork1/run_experiment.py" = ["E501"]
+"src/fork1/synthesis.py" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --cov=src --cov-report=term-missing --cov-fail-under=85"
