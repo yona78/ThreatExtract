@@ -17,6 +17,7 @@ from fork1.run_experiment import (
     prepare_samples_for_config,
     predict_samples,
     run_intrinsic_eval,
+    run_operational_eval,
     run_protocol_comparison,
     run_subset_study,
     seqeval_cross_check,
@@ -25,6 +26,7 @@ from fork1.run_experiment import (
     write_protocol_comparison_report,
     write_robustness_report,
     write_intrinsic_report,
+    write_operational_report,
     write_subset_study_report,
     write_preprocessing_tornado,
     write_preprocessing_report,
@@ -696,6 +698,87 @@ def test_run_intrinsic_eval_writes_report_and_jsonl(monkeypatch, tmp_path: Path)
     assert (tmp_path / "reports" / "intrinsic_metrics.md").is_file()
 
 
+def test_write_operational_report_includes_device_and_latency(tmp_path: Path) -> None:
+    rows = [
+        {
+            "device": "cpu",
+            "model": "securebert",
+            "token_length": 16,
+            "batch_size": 1,
+            "p50_ms": 10.0,
+            "p95_ms": 12.0,
+            "p99_ms": 13.0,
+            "sent_per_s": 100.0,
+            "tok_per_s": 1600.0,
+            "rss_after_load_mb": 512.0,
+            "load_seconds": 1.2,
+            "energy_j": 12.0,
+            "energy_source": "estimated",
+            "cache_size_mb": 950.0,
+        }
+    ]
+
+    write_operational_report(tmp_path / "operational_envelope.md", rows)
+
+    text = (tmp_path / "operational_envelope.md").read_text(encoding="utf-8")
+    assert "CPU is deployment-relevant" in text
+    assert "| Device | Model | Tokens | Batch | p50 ms | p95 ms | p99 ms |" in text
+    assert "securebert" in text
+
+
+def test_run_operational_eval_writes_report_jsonl_and_figures(monkeypatch, tmp_path: Path) -> None:
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="APT",
+            tokens=("APT", "uses", "CVE"),
+            tags=("O", "O", "O"),
+            gold_spans=[],
+        )
+    ]
+
+    class FakeRunner:
+        def __init__(
+            self, name, model_id, device_request, allow_device_fallback, offline, cache_dir
+        ):
+            self.name = name
+            self.model_id = model_id
+            self.device_request = device_request
+            self.pipe = lambda texts, batch_size=None: [[] for _ in texts]
+
+        def load(self):
+            return {"load_seconds": 0.1, "rss_after_load_mb": 100.0}
+
+    def fake_load_dnrti_dataset(dnrti_dir, split):
+        return samples, [], []
+
+    monkeypatch.setattr(run_experiment, "load_dnrti_dataset", fake_load_dnrti_dataset)
+    monkeypatch.setattr(run_experiment, "HfTokenClassificationRunner", FakeRunner)
+    monkeypatch.setattr(run_experiment, "directory_size_bytes", lambda path: 1024 * 1024)
+    monkeypatch.setattr(
+        run_experiment,
+        "operational_devices",
+        lambda requested: [{"device": "cpu", "status": "available"}],
+    )
+
+    rows = run_operational_eval(
+        dnrti_dir=tmp_path / "dnrti",
+        out_dir=tmp_path / "reports",
+        offline=True,
+        cache_dir=tmp_path / "cache",
+        requested_device="both",
+        token_lengths=(16,),
+        batch_sizes=(1,),
+    )
+
+    assert rows
+    assert (tmp_path / "reports" / "operational_envelope.jsonl").is_file()
+    assert (tmp_path / "reports" / "operational_envelope.md").is_file()
+    assert (tmp_path / "reports" / "figures" / "operational_latency.svg").is_file()
+
+
 def test_run_protocol_comparison_writes_report_and_jsonl(monkeypatch, tmp_path: Path) -> None:
     samples = [
         Sample(
@@ -801,3 +884,4 @@ def test_run_experiment_module_help_works_from_repo_root() -> None:
     assert "subset" in result.stdout
     assert "protocol" in result.stdout
     assert "intrinsic" in result.stdout
+    assert "operational" in result.stdout

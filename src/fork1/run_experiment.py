@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import time
 from collections import Counter, defaultdict
 from dataclasses import replace
 from pathlib import Path
@@ -26,6 +27,7 @@ from fork1.metrics import (
     mcnemar,
     sample_muc_counts,
 )
+from fork1.operational import make_workload, sample_power
 from fork1.perturb import PERTURBATIONS, keyboard_typo, random_case
 from fork1.preprocess import DETOKENIZERS, iter_contexts, normalize_text
 from fork1.runner import (
@@ -911,6 +913,180 @@ def write_intrinsic_report(path: Path, rows: list[dict[str, object]]) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def operational_devices(requested: str) -> list[dict[str, str]]:
+    devices = []
+    if requested in {"cpu", "both"}:
+        devices.append({"device": "cpu", "status": "available"})
+    if requested in {"mps", "both"}:
+        try:
+            import torch
+
+            available = torch.backends.mps.is_available()
+        except ImportError:
+            available = False
+        devices.append(
+            {
+                "device": "mps",
+                "status": "available" if available else "unavailable",
+            }
+        )
+    return devices
+
+
+def benchmark_runner_batch(
+    runner,
+    workload: list[str],
+    batch_size: int,
+    warmup: int,
+    repeats: int,
+) -> dict[str, float | int]:
+    for _ in range(warmup):
+        _run_batch(runner, workload, batch_size)
+
+    latencies = []
+    total_tokens = 0
+    for _ in range(repeats):
+        start = time.perf_counter()
+        _run_batch(runner, workload, batch_size)
+        elapsed = time.perf_counter() - start
+        latencies.append(elapsed)
+        total_tokens += sum(len(text.split()) for text in workload)
+    latency_ms = [value * 1000 for value in latencies]
+    total_seconds = sum(latencies)
+    sentences = len(workload) * repeats
+    return {
+        "sentences": sentences,
+        "tokens": total_tokens,
+        "total_seconds": total_seconds,
+        "mean_ms": sum(latency_ms) / len(latency_ms) if latency_ms else 0.0,
+        "p50_ms": _percentile(latency_ms, 50),
+        "p95_ms": _percentile(latency_ms, 95),
+        "p99_ms": _percentile(latency_ms, 99),
+        "sent_per_s": sentences / total_seconds if total_seconds else 0.0,
+        "tok_per_s": total_tokens / total_seconds if total_seconds else 0.0,
+    }
+
+
+def _run_batch(runner, workload: list[str], batch_size: int) -> None:
+    if getattr(runner, "pipe", None) is not None:
+        list(runner.pipe(workload, batch_size=batch_size))
+        return
+    for text in workload:
+        runner.predict(text)
+
+
+def _percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = round((percentile / 100) * (len(ordered) - 1))
+    return ordered[index]
+
+
+def write_operational_report(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Operational Envelope",
+        "",
+        "CPU is deployment-relevant because the offline Docker image ships CPU-only torch; "
+        "MPS is the local-dev ceiling.",
+        "",
+        "![Latency](figures/operational_latency.svg)",
+        "",
+        "![Throughput](figures/operational_throughput.svg)",
+        "",
+        "| Device | Model | Tokens | Batch | p50 ms | p95 ms | p99 ms | sent/s | tok/s | RSS MB | Load s | Energy J | Energy source | Cache MB |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|",
+    ]
+    for row in rows:
+        if row.get("status") != "available":
+            lines.append(
+                f"| {row['device']} | {row['model']} | - | - | - | - | - | - | - | - | - | - | "
+                f"{row.get('status', 'unavailable')} | - |"
+            )
+            continue
+        lines.append(
+            f"| {row['device']} | {row['model']} | {int(row['token_length'])} | "
+            f"{int(row['batch_size'])} | {float(row['p50_ms']):.2f} | "
+            f"{float(row['p95_ms']):.2f} | {float(row['p99_ms']):.2f} | "
+            f"{float(row['sent_per_s']):.2f} | {float(row['tok_per_s']):.2f} | "
+            f"{float(row['rss_after_load_mb']):.1f} | {float(row['load_seconds']):.2f} | "
+            f"{float(row['energy_j']):.2f} | {row['energy_source']} | "
+            f"{float(row['cache_size_mb']):.1f} |"
+        )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_operational_plot(
+    path: Path,
+    rows: list[dict[str, object]],
+    metric: str,
+    title: str,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    available = [row for row in rows if row.get("status") == "available"]
+    width = 820
+    height = 360
+    left = 80
+    bottom = 54
+    top = 34
+    plot_width = width - left - 40
+    plot_height = height - top - bottom
+    max_value = max((float(row[metric]) for row in available), default=1.0) or 1.0
+    token_lengths = sorted({int(row["token_length"]) for row in available})
+    if not token_lengths:
+        token_lengths = [1]
+    x_positions = {
+        token_length: left + index * (plot_width / max(1, len(token_lengths) - 1))
+        for index, token_length in enumerate(token_lengths)
+    }
+    palette = {
+        ("cpu", "securebert"): "#2f6fbb",
+        ("cpu", "cyner"): "#c45746",
+        ("mps", "securebert"): "#6aa6e8",
+        ("mps", "cyner"): "#e08a7c",
+    }
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}">',
+        '<rect width="100%" height="100%" fill="white"/>',
+        f'<text x="24" y="24" font-family="Arial" font-size="16" font-weight="700">{html.escape(title)}</text>',
+        f'<line x1="{left}" y1="{height - bottom}" x2="{width - 40}" y2="{height - bottom}" stroke="#444"/>',
+        f'<line x1="{left}" y1="{top}" x2="{left}" y2="{height - bottom}" stroke="#444"/>',
+    ]
+    for token_length, x in x_positions.items():
+        parts.append(
+            f'<text x="{x - 10}" y="{height - 28}" font-family="Arial" font-size="11">{token_length}</text>'
+        )
+    for device in ("cpu", "mps"):
+        for model in ("securebert", "cyner"):
+            model_rows = [
+                row
+                for row in available
+                if row["device"] == device and row["model"] == model and int(row["batch_size"]) == 1
+            ]
+            if not model_rows:
+                continue
+            points = []
+            for row in sorted(model_rows, key=lambda item: int(item["token_length"])):
+                x = x_positions[int(row["token_length"])]
+                y = height - bottom - (float(row[metric]) / max_value * plot_height)
+                points.append((x, y))
+            point_text = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+            color = palette[(device, model)]
+            parts.append(
+                f'<polyline fill="none" stroke="{color}" stroke-width="2" points="{point_text}"/>'
+            )
+            label_x, label_y = points[-1]
+            parts.append(
+                f'<text x="{label_x + 6:.1f}" y="{label_y:.1f}" font-family="Arial" '
+                f'font-size="11" fill="{color}">{device}/{model}</text>'
+            )
+    parts.append("</svg>")
+    path.write_text("\n".join(parts), encoding="utf-8")
+
+
 def run_intrinsic_eval(
     *,
     dnrti_dir: Path,
@@ -948,6 +1124,102 @@ def run_intrinsic_eval(
         )
     write_jsonl(out_dir / "intrinsic_metrics.jsonl", rows)
     write_intrinsic_report(out_dir / "intrinsic_metrics.md", rows)
+    return rows
+
+
+def run_operational_eval(
+    *,
+    dnrti_dir: Path,
+    out_dir: Path,
+    offline: bool,
+    cache_dir: Path | None,
+    requested_device: str,
+    token_lengths: tuple[int, ...] = (16, 32, 64, 128, 256),
+    batch_sizes: tuple[int, ...] = (1, 8, 32),
+    warmup: int = 1,
+    repeats: int = 1,
+    assumed_watts: float = 25.0,
+) -> list[dict[str, object]]:
+    samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    token_pool = [token for sample in samples for token in sample.tokens] or None
+    rows: list[dict[str, object]] = []
+    for device_info in operational_devices(requested_device):
+        device = device_info["device"]
+        for model_name in PRESETS["pdf_mapping"].models:
+            if device_info["status"] != "available":
+                rows.append(
+                    {"device": device, "model": model_name, "status": device_info["status"]}
+                )
+                continue
+            runner = HfTokenClassificationRunner(
+                name=model_name,
+                model_id=MODEL_ALIASES[model_name],
+                device_request=device,
+                allow_device_fallback=False,
+                offline=offline,
+                cache_dir=cache_dir,
+            )
+            try:
+                load_info = runner.load()
+            except RuntimeError as exc:
+                rows.append(
+                    {
+                        "device": device,
+                        "model": model_name,
+                        "status": f"error: {exc}",
+                    }
+                )
+                continue
+            cache_size = directory_size_bytes(
+                hf_cache_model_dir(cache_dir, MODEL_ALIASES[model_name])
+            )
+            for token_length in token_lengths:
+                for batch_size in batch_sizes:
+                    workload = make_workload(
+                        [token_length],
+                        batch_size,
+                        seed=20260621 + token_length + batch_size,
+                        token_pool=token_pool,
+                    )
+                    metrics = benchmark_runner_batch(
+                        runner,
+                        workload,
+                        batch_size=batch_size,
+                        warmup=warmup,
+                        repeats=repeats,
+                    )
+                    watts = sample_power(float(metrics["total_seconds"]))
+                    energy_source = "powermetrics" if watts is not None else "estimated"
+                    watts = watts if watts is not None else assumed_watts
+                    rows.append(
+                        {
+                            "device": device,
+                            "model": model_name,
+                            "status": "available",
+                            "token_length": token_length,
+                            "batch_size": batch_size,
+                            **metrics,
+                            "load_seconds": load_info.get("load_seconds") or 0.0,
+                            "rss_after_load_mb": load_info.get("rss_after_load_mb") or 0.0,
+                            "energy_j": float(watts) * float(metrics["total_seconds"]),
+                            "energy_source": energy_source,
+                            "cache_size_mb": (cache_size or 0) / (1024 * 1024),
+                        }
+                    )
+    write_jsonl(out_dir / "operational_envelope.jsonl", rows)
+    write_operational_plot(
+        out_dir / "figures" / "operational_latency.svg",
+        rows,
+        metric="p50_ms",
+        title="Operational p50 latency by token length",
+    )
+    write_operational_plot(
+        out_dir / "figures" / "operational_throughput.svg",
+        rows,
+        metric="tok_per_s",
+        title="Operational throughput by token length",
+    )
+    write_operational_report(out_dir / "operational_envelope.md", rows)
     return rows
 
 
@@ -1235,12 +1507,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Fork 1 experiments.")
     parser.add_argument(
         "--sweep",
-        choices=["preprocessing", "subset", "protocol", "intrinsic", "robustness"],
+        choices=["preprocessing", "subset", "protocol", "intrinsic", "operational", "robustness"],
         required=True,
     )
     parser.add_argument("--dnrti-dir", type=Path, default=Path("data/dnrti"))
     parser.add_argument("--out-dir", type=Path, default=Path("reports/fork1"))
-    parser.add_argument("--device", choices=["cpu", "mps"], default="mps")
+    parser.add_argument("--device", choices=["cpu", "mps", "both"], default="mps")
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--cache-dir", type=Path, default=Path("model_cache/fork1"))
     parser.add_argument("--bootstrap", type=int, default=None)
@@ -1279,6 +1551,14 @@ def main(argv: list[str] | None = None) -> int:
             out_dir=args.out_dir,
             offline=args.offline,
             cache_dir=args.cache_dir,
+        )
+    elif args.sweep == "operational":
+        run_operational_eval(
+            dnrti_dir=args.dnrti_dir,
+            out_dir=args.out_dir,
+            offline=args.offline,
+            cache_dir=args.cache_dir,
+            requested_device=args.device,
         )
     elif args.sweep == "robustness":
         run_robustness_eval(
