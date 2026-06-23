@@ -16,6 +16,7 @@ from fork1.run_experiment import (
     mapping_coverage_for_model,
     prepare_samples_for_config,
     predict_samples,
+    run_calibration_eval,
     run_intrinsic_eval,
     run_operational_eval,
     run_protocol_comparison,
@@ -26,6 +27,7 @@ from fork1.run_experiment import (
     write_protocol_comparison_report,
     write_robustness_report,
     write_intrinsic_report,
+    write_calibration_report,
     write_operational_report,
     write_subset_study_report,
     write_preprocessing_tornado,
@@ -698,6 +700,84 @@ def test_run_intrinsic_eval_writes_report_and_jsonl(monkeypatch, tmp_path: Path)
     assert (tmp_path / "reports" / "intrinsic_metrics.md").is_file()
 
 
+def test_write_calibration_report_includes_ece_and_threshold(tmp_path: Path) -> None:
+    summaries = [
+        {
+            "model": "securebert",
+            "ece": 0.12,
+            "records": 10,
+            "recommended_threshold": 0.8,
+            "recommended_precision": 0.91,
+            "recommended_recall": 0.2,
+        }
+    ]
+    sweep_rows = [
+        {
+            "model": "securebert",
+            "threshold": 0.8,
+            "precision": 0.91,
+            "recall": 0.2,
+            "predictions": 3,
+        }
+    ]
+
+    write_calibration_report(tmp_path / "calibration.md", summaries, sweep_rows)
+
+    text = (tmp_path / "calibration.md").read_text(encoding="utf-8")
+    assert "| Model | ECE | Entity predictions | Recommended threshold |" in text
+    assert "securebert" in text
+
+
+def test_run_calibration_eval_writes_report_jsonl_and_diagram(monkeypatch, tmp_path: Path) -> None:
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="APT",
+            tokens=("APT",),
+            tags=("B-HackOrg",),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
+            ],
+        )
+    ]
+    predictions = {
+        "securebert": {
+            "test-0": [
+                Span(label="APT", start=0, end=3, text="APT", score=0.9, source="securebert")
+            ]
+        },
+        "cyner": {"test-0": []},
+    }
+
+    def fake_load_dnrti_dataset(dnrti_dir, split):
+        return samples, [], []
+
+    def fake_run_config_with_predictions(config, samples_arg, *, device, offline, cache_dir):
+        return samples_arg, predictions, []
+
+    monkeypatch.setattr(run_experiment, "load_dnrti_dataset", fake_load_dnrti_dataset)
+    monkeypatch.setattr(
+        run_experiment,
+        "run_config_with_predictions",
+        fake_run_config_with_predictions,
+    )
+
+    summaries = run_calibration_eval(
+        dnrti_dir=tmp_path / "dnrti",
+        out_dir=tmp_path / "reports",
+        device="mps",
+        offline=True,
+        cache_dir=tmp_path / "cache",
+    )
+
+    assert summaries
+    assert (tmp_path / "reports" / "calibration_summary.jsonl").is_file()
+    assert (tmp_path / "reports" / "calibration.md").is_file()
+    assert (tmp_path / "reports" / "figures" / "calibration_reliability.svg").is_file()
+
+
 def test_write_operational_report_includes_device_and_latency(tmp_path: Path) -> None:
     rows = [
         {
@@ -885,3 +965,5 @@ def test_run_experiment_module_help_works_from_repo_root() -> None:
     assert "protocol" in result.stdout
     assert "intrinsic" in result.stdout
     assert "operational" in result.stdout
+    assert "robustness" in result.stdout
+    assert "calibration" in result.stdout

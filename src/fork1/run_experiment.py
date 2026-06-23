@@ -10,6 +10,7 @@ from pathlib import Path
 from statistics import mean, variance
 
 from fork1.align import align_pred_to_tokens
+from fork1.calibration import entity_records, expected_calibration_error, threshold_sweep
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, extract_bio_spans, load_dnrti_dataset
 from fork1.intrinsic import (
@@ -1223,6 +1224,158 @@ def run_operational_eval(
     return rows
 
 
+def write_calibration_report(
+    path: Path,
+    summaries: list[dict[str, object]],
+    sweep_rows: list[dict[str, object]],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Calibration",
+        "",
+        "![Reliability diagram](figures/calibration_reliability.svg)",
+        "",
+        "| Model | ECE | Entity predictions | Recommended threshold | Precision | Recall |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in summaries:
+        threshold = row["recommended_threshold"]
+        threshold_text = "unreachable" if threshold is None else f"{float(threshold):.2f}"
+        precision = row["recommended_precision"]
+        recall = row["recommended_recall"]
+        lines.append(
+            f"| {row['model']} | {float(row['ece']):.4f} | {int(row['records'])} | "
+            f"{threshold_text} | "
+            f"{'' if precision is None else f'{float(precision):.4f}'} | "
+            f"{'' if recall is None else f'{float(recall):.4f}'} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Threshold Sweep",
+            "",
+            "| Model | Threshold | Predictions | Precision | Recall |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+    for row in sweep_rows:
+        lines.append(
+            f"| {row['model']} | {float(row['threshold']):.2f} | "
+            f"{int(row['predictions'])} | {float(row['precision']):.4f} | "
+            f"{float(row['recall']):.4f} |"
+        )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_calibration_reliability_diagram(
+    path: Path,
+    records_by_model: dict[str, list[dict[str, float | bool]]],
+    bins: int = 10,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    width = 640
+    height = 360
+    left = 60
+    bottom = 52
+    top = 30
+    plot = 260
+    palette = {"securebert": "#2f6fbb", "cyner": "#c45746"}
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}">',
+        '<rect width="100%" height="100%" fill="white"/>',
+        '<text x="24" y="24" font-family="Arial" font-size="16" font-weight="700">Reliability Diagram</text>',
+        f'<line x1="{left}" y1="{height-bottom}" x2="{left+plot}" y2="{height-bottom}" stroke="#444"/>',
+        f'<line x1="{left}" y1="{height-bottom}" x2="{left}" y2="{top}" stroke="#444"/>',
+        f'<line x1="{left}" y1="{height-bottom}" x2="{left+plot}" y2="{height-bottom-plot}" stroke="#999" stroke-dasharray="4 4"/>',
+    ]
+    for model, records in records_by_model.items():
+        points = []
+        for index in range(bins):
+            low = index / bins
+            high = (index + 1) / bins
+            if index == bins - 1:
+                bucket = [record for record in records if low <= float(record["score"]) <= high]
+            else:
+                bucket = [record for record in records if low <= float(record["score"]) < high]
+            if not bucket:
+                continue
+            confidence = sum(float(record["score"]) for record in bucket) / len(bucket)
+            precision = sum(bool(record["is_correct"]) for record in bucket) / len(bucket)
+            x = left + confidence * plot
+            y = height - bottom - precision * plot
+            points.append((x, y))
+        if not points:
+            continue
+        color = palette.get(model, "#777")
+        point_text = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+        parts.append(
+            f'<polyline fill="none" stroke="{color}" stroke-width="2" points="{point_text}"/>'
+        )
+        for x, y in points:
+            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}"/>')
+        parts.append(
+            f'<text x="{left+plot+24}" y="{top + 20 * len(parts) % 260}" '
+            f'font-family="Arial" font-size="12" fill="{color}">{model}</text>'
+        )
+    parts.append("</svg>")
+    path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def run_calibration_eval(
+    *,
+    dnrti_dir: Path,
+    out_dir: Path,
+    device: str,
+    offline: bool,
+    cache_dir: Path | None,
+) -> list[dict[str, object]]:
+    samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    config = PRESETS["pdf_mapping"]
+    prepared, predictions, _rows = run_config_with_predictions(
+        config,
+        samples,
+        device=device,
+        offline=offline,
+        cache_dir=cache_dir,
+    )
+    total_gold = sum(len(sample.gold_spans) for sample in prepared)
+    thresholds = [index / 20 for index in range(20)]
+    thresholds.append(0.99)
+    summaries: list[dict[str, object]] = []
+    sweep_rows: list[dict[str, object]] = []
+    records_by_model = {}
+    for model_name in config.models:
+        records = entity_records(prepared, predictions[model_name], model_name)
+        records_by_model[model_name] = records
+        ece = expected_calibration_error(records, bins=10)
+        model_sweep = threshold_sweep(records, thresholds, total_gold=total_gold)
+        for row in model_sweep:
+            row["model"] = model_name
+        sweep_rows.extend(model_sweep)
+        viable = [row for row in model_sweep if row["precision"] >= 0.9 and row["predictions"] > 0]
+        best = max(viable, key=lambda row: (row["recall"], -row["threshold"])) if viable else None
+        summaries.append(
+            {
+                "model": model_name,
+                "ece": ece,
+                "records": len(records),
+                "recommended_threshold": None if best is None else best["threshold"],
+                "recommended_precision": None if best is None else best["precision"],
+                "recommended_recall": None if best is None else best["recall"],
+            }
+        )
+    write_jsonl(out_dir / "calibration_summary.jsonl", summaries)
+    write_jsonl(out_dir / "calibration_thresholds.jsonl", sweep_rows)
+    write_calibration_reliability_diagram(
+        out_dir / "figures" / "calibration_reliability.svg",
+        records_by_model,
+    )
+    write_calibration_report(out_dir / "calibration.md", summaries, sweep_rows)
+    return summaries
+
+
 def write_robustness_report(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -1507,7 +1660,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Fork 1 experiments.")
     parser.add_argument(
         "--sweep",
-        choices=["preprocessing", "subset", "protocol", "intrinsic", "operational", "robustness"],
+        choices=[
+            "preprocessing",
+            "subset",
+            "protocol",
+            "intrinsic",
+            "operational",
+            "robustness",
+            "calibration",
+        ],
         required=True,
     )
     parser.add_argument("--dnrti-dir", type=Path, default=Path("data/dnrti"))
@@ -1568,6 +1729,14 @@ def main(argv: list[str] | None = None) -> int:
             offline=args.offline,
             cache_dir=args.cache_dir,
             bootstrap=args.bootstrap,
+        )
+    elif args.sweep == "calibration":
+        run_calibration_eval(
+            dnrti_dir=args.dnrti_dir,
+            out_dir=args.out_dir,
+            device=args.device,
+            offline=args.offline,
+            cache_dir=args.cache_dir,
         )
     return 0
 
