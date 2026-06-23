@@ -263,6 +263,26 @@ def test_extract_entities_returns_empty_when_pipeline_empty():
     assert entities == []
 
 
+def test_extract_entities_trims_surrounding_whitespace():
+    """Spans that include leading/trailing whitespace are trimmed to clean text."""
+    raw = [{"start": 0, "end": 6, "entity_group": "MAL", "score": 0.9}]
+    engine = _build_engine(pipeline_output=raw)
+    # text[0:6] == "\nWell " → trimmed inward to "Well" at offsets 1..5.
+    entities = engine.extract_entities("\nWell more")
+    assert len(entities) == 1
+    assert entities[0].text == "Well"
+    assert entities[0].start == 1
+    assert entities[0].end == 5
+
+
+def test_extract_entities_drops_whitespace_only_span():
+    """A span that is entirely whitespace is dropped, not emitted as empty."""
+    raw = [{"start": 0, "end": 1, "entity_group": "MAL", "score": 0.9}]
+    engine = _build_engine(pipeline_output=raw)
+    # text[0:1] == "\n" → empty after trimming → dropped.
+    assert engine.extract_entities("\nfoo") == []
+
+
 # ---------------------------------------------------------------------------
 # chunk_text edge cases not covered by existing tests
 # ---------------------------------------------------------------------------
