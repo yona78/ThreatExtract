@@ -188,13 +188,20 @@ def test_write_robustness_report_includes_delta_f1(tmp_path: Path) -> None:
             "delta_f1": -0.08,
             "ci_low": -0.10,
             "ci_high": -0.05,
+            "gap_vs_other": 0.17,
+            "gap_ci_low": 0.10,
+            "gap_ci_high": 0.20,
+            "flip": False,
         }
     ]
 
     write_robustness_report(tmp_path / "robustness.md", rows)
 
     text = (tmp_path / "robustness.md").read_text(encoding="utf-8")
-    assert "| Perturbation | Model | Clean F1 | Noisy F1 | Delta F1 | 95% CI |" in text
+    assert (
+        "| Perturbation | Model | Clean F1 | Noisy F1 | Delta F1 | Delta 95% CI | "
+        "Gap vs Other | Gap 95% CI | Flip? |"
+    ) in text
     assert "defang" in text
 
 

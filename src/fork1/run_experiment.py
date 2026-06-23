@@ -350,14 +350,18 @@ def write_robustness_report(path: Path, rows: list[dict[str, object]]) -> None:
     lines = [
         "# Robustness Perturbations",
         "",
-        "| Perturbation | Model | Clean F1 | Noisy F1 | Delta F1 | 95% CI |",
-        "|---|---|---:|---:|---:|---|",
+        "| Perturbation | Model | Clean F1 | Noisy F1 | Delta F1 | Delta 95% CI | "
+        "Gap vs Other | Gap 95% CI | Flip? |",
+        "|---|---|---:|---:|---:|---|---:|---|---|",
     ]
     for row in rows:
         lines.append(
             f"| {row['perturbation']} | {row['model']} | {float(row['clean_f1']):.4f} | "
             f"{float(row['noisy_f1']):.4f} | {float(row['delta_f1']):.4f} | "
-            f"[{float(row['ci_low']):.4f}, {float(row['ci_high']):.4f}] |"
+            f"[{float(row['ci_low']):.4f}, {float(row['ci_high']):.4f}] | "
+            f"{float(row['gap_vs_other']):.4f} | "
+            f"[{float(row['gap_ci_low']):.4f}, {float(row['gap_ci_high']):.4f}] | "
+            f"{'yes' if row['flip'] else 'no'} |"
         )
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
