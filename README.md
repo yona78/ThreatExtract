@@ -27,6 +27,26 @@ models without touching a line of code.
 > (see `docs/superpowers/specs/2026-06-21-threatextract-app-design.md` for the
 > design). This README is finalized in the last step of the build.
 
+## Fork 1 Research Reproduction
+
+Fork 1 compares frozen SecureBERT-NER and CyNER on DNRTI using the local offline
+cache. Keep research-only dependencies out of the Docker runtime and inject them
+with `uv` when reproducing:
+
+```bash
+make reproduce
+```
+
+Useful overrides:
+
+```bash
+make reproduce DNRTI_DIR=data/dnrti CACHE_DIR=model_cache/fork1 DEVICE=mps
+make e11
+```
+
+The final paper-style report is `reports/fork1/benchmark_summary.md`; the master
+table is `reports/fork1/master_table.jsonl`.
+
 ## License
 
 For assignment / evaluation use.

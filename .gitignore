@@ -19,6 +19,7 @@ dist/
 .coverage
 htmlcov/
 .mypy_cache/
+.uv-cache/
 
 # Model weights are downloaded locally BEFORE the Docker build — never commit them
 model_cache/
