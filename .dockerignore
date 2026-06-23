@@ -1,16 +1,25 @@
 # Keep the build context (and image) small.
-# NOTE: model_cache/ is intentionally NOT ignored — the Dockerfile COPYs it in.
+# NOTE: model_cache/ is intentionally NOT ignored — the Dockerfile COPYs the
+# chosen model in. But the other fork's cache and training-checkpoint artifacts
+# are never needed for inference, so drop them from the build context (and image).
+model_cache/fork1/
+model_cache/**/optimizer.pt
+model_cache/**/scheduler.pt
+model_cache/**/rng_state*.pth
+model_cache/**/trainer_state.json
+model_cache/**/training_args.bin
+model_cache/**/.cache/
 
 .git/
 .gitignore
 .dockerignore
 
-# Virtual environments / caches
+# Virtual environments / caches (** so nested dirs like src/__pycache__ match too)
 .venv/
 venv/
 env/
-__pycache__/
-*.py[cod]
+**/__pycache__/
+**/*.py[cod]
 .pytest_cache/
 .coverage
 .mypy_cache/
@@ -22,6 +31,13 @@ docs/
 .claude/
 requirements-dev.txt
 *.md
+
+# Fork 1 research code & data are not part of the serving app.
+src/fork1/
+benchmark.py
+requirements-research.txt
+reports/
+data/
 
 # OS / editor
 .DS_Store

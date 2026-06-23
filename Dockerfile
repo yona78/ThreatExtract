@@ -27,10 +27,13 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     fi \
     && pip install --no-cache-dir -r requirements.txt
 
-# Pre-downloaded model weights. Run `python download_model.py` BEFORE building
-# so ./model_cache/ exists; this is the ONLY way models enter the image — it is
-# never downloaded at build or runtime.
-COPY model_cache/ /app/model_cache/
+# Pre-downloaded weights for the CHOSEN model (SecureBERT-NER). Run
+# `python download_model.py` BEFORE building so the directory below exists; this
+# COPY is the ONLY way the model enters the image — nothing is ever downloaded
+# at build or runtime. Only the chosen model is baked in, keeping the image lean
+# and fully self-contained. Swap models by re-downloading and editing the path
+# here, or by mounting model_cache/ at runtime (see docker-compose.yml).
+COPY model_cache/CyberPeace-Institute__SecureBERT-NER/ /app/model_cache/CyberPeace-Institute__SecureBERT-NER/
 
 # Application code.
 COPY src/ /app/src/

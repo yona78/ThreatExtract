@@ -61,9 +61,26 @@ class TestBuildIgnorePatterns:
         patterns = build_ignore_patterns([])
         assert patterns == _BASE_IGNORE_PATTERNS
 
-    def test_does_not_blanket_ignore_all_bin_files(self):
-        """Only pytorch_model*.bin is targeted — other .bin files must not be excluded."""
+    def test_targets_specific_files_not_blanket_bin_glob(self):
+        """Exclusions are specific filenames, never a blanket ``*.bin`` that
+        would also drop real weights (pytorch_model.bin)."""
         repo_files = ["model.safetensors", "pytorch_model.bin", "training_args.bin"]
         patterns = build_ignore_patterns(repo_files)
-        # The glob patterns added are specific, not "*.bin"
         assert "*.bin" not in patterns
+        # training_args.bin is a training artifact, dropped by exact name.
+        assert "training_args.bin" in patterns
+
+    def test_always_ignores_training_checkpoint_artifacts(self):
+        """Optimizer/scheduler/RNG/trainer-state artifacts are never needed for
+        inference and must always be ignored, regardless of weight format."""
+        artifacts = (
+            "optimizer.pt",
+            "scheduler.pt",
+            "rng_state*.pth",
+            "trainer_state.json",
+            "training_args.bin",
+        )
+        for repo_files in [["model.safetensors"], ["pytorch_model.bin"], []]:
+            patterns = build_ignore_patterns(repo_files)
+            for artifact in artifacts:
+                assert artifact in patterns, f"{artifact!r} missing for {repo_files!r}"
