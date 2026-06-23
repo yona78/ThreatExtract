@@ -25,6 +25,7 @@ from fork1.metrics import (
     bootstrap_count_gap_ci,
     bootstrap_gap_ci,
     corpus_f1,
+    corpus_scores,
     mcnemar,
     sample_muc_counts,
 )
@@ -780,6 +781,48 @@ def seqeval_cross_check(
     }
 
 
+def write_methodology_report(
+    path: Path,
+    rows: list[dict[str, object]],
+    checks: list[dict[str, object]],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Evaluation Methodology Baseline",
+        "",
+        "| Model | Scheme | Precision | Recall | F1 | Gap | 95% CI | Flip? | COR | INC | PAR | MIS | SPU |",
+        "|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['model']} | {row['scheme']} | {float(row['precision']):.4f} | "
+            f"{float(row['recall']):.4f} | {float(row['f1']):.4f} | "
+            f"{float(row['gap_vs_other']):.4f} | "
+            f"[{float(row['ci_low']):.4f}, {float(row['ci_high']):.4f}] | "
+            f"{'yes' if row['flip'] else 'no'} | "
+            f"{int(row['correct'])} | {int(row['incorrect'])} | "
+            f"{int(row['partial'])} | {int(row['missing'])} | {int(row['spurious'])} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Seqeval Cross-Check",
+            "",
+            "| Model | Our unique-label F1 | Seqeval F1 | Delta | Unique gold spans |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+    for check in checks:
+        lines.append(
+            f"| {check['model']} | {float(check['our_f1']):.4f} | "
+            f"{float(check['seqeval_f1']):.4f} | {float(check['delta']):.4f} | "
+            f"{int(check['unique_gold_spans'])} |"
+        )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def write_protocol_comparison_report(
     path: Path,
     rows: list[dict[str, object]],
@@ -1221,6 +1264,88 @@ def run_operational_eval(
         title="Operational throughput by token length",
     )
     write_operational_report(out_dir / "operational_envelope.md", rows)
+    return rows
+
+
+def run_methodology_eval(
+    *,
+    dnrti_dir: Path,
+    out_dir: Path,
+    device: str,
+    offline: bool,
+    cache_dir: Path | None,
+    bootstrap: int | None = None,
+) -> list[dict[str, object]]:
+    samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    config = PRESETS["pdf_mapping"]
+    if bootstrap is not None:
+        config = replace(config, bootstrap=bootstrap)
+    prepared, predictions, _strict_rows = run_config_with_predictions(
+        config,
+        samples,
+        device=device,
+        offline=offline,
+        cache_dir=cache_dir,
+    )
+    scores_by_model = {
+        model_name: corpus_scores(prepared, predictions[model_name], model_name)
+        for model_name in config.models
+    }
+    rows: list[dict[str, object]] = []
+    if len(config.models) == 2:
+        model_a, model_b = config.models
+        stat, p_value = mcnemar(
+            prepared,
+            predictions[model_a],
+            predictions[model_b],
+            model_a,
+            model_b,
+        )
+        for scheme in ("strict", "exact", "partial", "type"):
+            lo, hi, gap = bootstrap_gap_ci(
+                prepared,
+                predictions[model_a],
+                predictions[model_b],
+                model_a,
+                model_b,
+                scheme,
+                config.bootstrap,
+                config.seed,
+            )
+            ci_by_model = {model_a: (lo, hi), model_b: (-hi, -lo)}
+            gap_by_model = {model_a: gap, model_b: -gap}
+            for model_name in config.models:
+                metrics = scores_by_model[model_name][scheme]
+                ci_low, ci_high = ci_by_model[model_name]
+                rows.append(
+                    {
+                        "config": config.name,
+                        "model": model_name,
+                        "scheme": scheme,
+                        "precision": metrics["p"],
+                        "recall": metrics["r"],
+                        "f1": metrics["f1"],
+                        "correct": metrics["cor"],
+                        "incorrect": metrics["inc"],
+                        "partial": metrics["par"],
+                        "missing": metrics["mis"],
+                        "spurious": metrics["spu"],
+                        "gap_vs_other": gap_by_model[model_name],
+                        "ci_low": ci_low,
+                        "ci_high": ci_high,
+                        "mcnemar_stat": stat,
+                        "mcnemar_p": p_value,
+                        "flip": ci_low <= 0 <= ci_high,
+                    }
+                )
+
+    checks = [
+        seqeval_cross_check(prepared, predictions[model_name], model_name, config)
+        for model_name in config.models
+    ]
+    write_jsonl(out_dir / "methodology_baseline.jsonl", rows)
+    write_jsonl(out_dir / "methodology_seqeval_crosscheck.jsonl", checks)
+    write_methodology_report(out_dir / "methodology_baseline.md", rows, checks)
     return rows
 
 
@@ -1668,6 +1793,7 @@ def main(argv: list[str] | None = None) -> int:
             "operational",
             "robustness",
             "calibration",
+            "methodology",
         ],
         required=True,
     )
@@ -1737,6 +1863,15 @@ def main(argv: list[str] | None = None) -> int:
             device=args.device,
             offline=args.offline,
             cache_dir=args.cache_dir,
+        )
+    elif args.sweep == "methodology":
+        run_methodology_eval(
+            dnrti_dir=args.dnrti_dir,
+            out_dir=args.out_dir,
+            device=args.device,
+            offline=args.offline,
+            cache_dir=args.cache_dir,
+            bootstrap=args.bootstrap,
         )
     return 0
 

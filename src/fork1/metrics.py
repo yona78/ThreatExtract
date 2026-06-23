@@ -110,6 +110,14 @@ def corpus_f1(samples, preds, model_name: str, scheme: str) -> float:
     return float(prf(_sum_counts(per_sample), scheme)["f1"])
 
 
+def corpus_scores(samples, preds, model_name: str) -> dict[str, dict[str, float | int]]:
+    out = {}
+    for scheme in ("strict", "exact", "partial", "type"):
+        per_sample = sample_muc_counts(samples, preds, model_name, scheme)
+        out[scheme] = prf(_sum_counts(per_sample), scheme)
+    return out
+
+
 def _f1_from_sample_counts(
     counts: list[MucCounts], scheme: str, indices: list[int] | None = None
 ) -> float:

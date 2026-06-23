@@ -18,12 +18,14 @@ from fork1.run_experiment import (
     predict_samples,
     run_calibration_eval,
     run_intrinsic_eval,
+    run_methodology_eval,
     run_operational_eval,
     run_protocol_comparison,
     run_subset_study,
     seqeval_cross_check,
     subset_rows_from_predictions,
     summarize_subset_cells,
+    write_methodology_report,
     write_protocol_comparison_report,
     write_robustness_report,
     write_intrinsic_report,
@@ -88,6 +90,43 @@ def test_protocol_configs_compare_pdf_mapping_and_paper_native() -> None:
     assert configs[0].detok == "single_space"
     assert configs[1].detok == "punct_aware"
     assert configs[1].max_length == 128
+
+
+def test_write_methodology_report_includes_four_scheme_table(tmp_path: Path) -> None:
+    rows = [
+        {
+            "model": "securebert",
+            "scheme": "strict",
+            "precision": 0.2,
+            "recall": 0.4,
+            "f1": 0.3,
+            "correct": 1,
+            "incorrect": 2,
+            "partial": 0,
+            "missing": 3,
+            "spurious": 4,
+            "gap_vs_other": 0.2,
+            "ci_low": 0.1,
+            "ci_high": 0.3,
+            "flip": False,
+        }
+    ]
+    checks = [
+        {
+            "model": "securebert",
+            "our_f1": 0.3,
+            "seqeval_f1": 0.3,
+            "delta": 0.0,
+            "unique_gold_spans": 1,
+        }
+    ]
+
+    write_methodology_report(tmp_path / "methodology_baseline.md", rows, checks)
+
+    text = (tmp_path / "methodology_baseline.md").read_text(encoding="utf-8")
+    assert "| Model | Scheme | Precision | Recall | F1 |" in text
+    assert "Seqeval Cross-Check" in text
+    assert "securebert" in text
 
 
 def test_prepare_samples_rebuilds_text_offsets_for_config_detok() -> None:
@@ -700,6 +739,69 @@ def test_run_intrinsic_eval_writes_report_and_jsonl(monkeypatch, tmp_path: Path)
     assert (tmp_path / "reports" / "intrinsic_metrics.md").is_file()
 
 
+def test_run_methodology_eval_writes_baseline_and_crosscheck(monkeypatch, tmp_path: Path) -> None:
+    samples = [
+        Sample(
+            sample_id="test-0",
+            split="test",
+            index=0,
+            text="APT",
+            tokens=("APT",),
+            tags=("B-HackOrg",),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
+            ],
+        )
+    ]
+    predictions = {
+        "securebert": {
+            "test-0": [
+                Span(label="APT", start=0, end=3, text="APT", score=0.9, source="securebert")
+            ]
+        },
+        "cyner": {"test-0": []},
+    }
+
+    def fake_load_dnrti_dataset(dnrti_dir, split):
+        return samples, [], []
+
+    def fake_run_config_with_predictions(config, samples_arg, *, device, offline, cache_dir):
+        return samples_arg, predictions, []
+
+    monkeypatch.setattr(run_experiment, "load_dnrti_dataset", fake_load_dnrti_dataset)
+    monkeypatch.setattr(
+        run_experiment,
+        "run_config_with_predictions",
+        fake_run_config_with_predictions,
+    )
+    monkeypatch.setattr(
+        run_experiment,
+        "seqeval_cross_check",
+        lambda prepared, preds, model, config: {
+            "protocol": config.name,
+            "model": model,
+            "our_f1": 1.0 if model == "securebert" else 0.0,
+            "seqeval_f1": 1.0 if model == "securebert" else 0.0,
+            "delta": 0.0,
+            "unique_gold_spans": 1,
+        },
+    )
+
+    rows = run_methodology_eval(
+        dnrti_dir=tmp_path / "dnrti",
+        out_dir=tmp_path / "reports",
+        device="mps",
+        offline=True,
+        cache_dir=tmp_path / "cache",
+        bootstrap=0,
+    )
+
+    assert {row["scheme"] for row in rows} == {"strict", "exact", "partial", "type"}
+    assert (tmp_path / "reports" / "methodology_baseline.jsonl").is_file()
+    assert (tmp_path / "reports" / "methodology_seqeval_crosscheck.jsonl").is_file()
+    assert (tmp_path / "reports" / "methodology_baseline.md").is_file()
+
+
 def test_write_calibration_report_includes_ece_and_threshold(tmp_path: Path) -> None:
     summaries = [
         {
@@ -967,3 +1069,4 @@ def test_run_experiment_module_help_works_from_repo_root() -> None:
     assert "operational" in result.stdout
     assert "robustness" in result.stdout
     assert "calibration" in result.stdout
+    assert "methodology" in result.stdout
