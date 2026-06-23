@@ -38,8 +38,9 @@ changing one env var; the Python code never changes.
 
 - **Pre-build (online, once):** `download_model.py` snapshot-downloads a model
   into `./model_cache/<sanitized_id>/` and verifies it.
-- **Build:** the `Dockerfile` only `COPY`s `model_cache/` in — it never reaches
-  the network at build or run time.
+- **Build:** the `Dockerfile` `COPY`s only the **chosen model's** directory in —
+  it never reaches the network at build or run time, and the other fork's cache
+  plus training-checkpoint artifacts are left out, so the image stays lean.
 - **Runtime (offline):** the Streamlit app loads the model from the local cache
   (`local_files_only=True`, plus `TRANSFORMERS_OFFLINE=1`).
 
@@ -64,6 +65,16 @@ open http://localhost:8501             # (Linux: xdg-open)
 ```
 
 That's it — the container now runs entirely on-prem with no network access.
+
+**Proof it's fully offline** — start it with networking disabled; the model still
+loads and Streamlit still serves (the model is baked in and loaded with
+`local_files_only=True`):
+
+```bash
+docker run -d --name te --network none threatextract:latest
+docker exec te curl -fsS http://localhost:8501/_stcore/health   # -> ok
+docker rm -f te
+```
 
 ## Quickstart (local, no Docker)
 
@@ -165,7 +176,8 @@ The sidebar always shows which model is loaded and the classes it can detect.
   entity character-offsets are remapped back to the whole document, and a live
   `st.progress` bar reports chunk-by-chunk progress.
 - **Clean entities.** Piecewise model output (`CVE` `-` `2021` …) is stitched into
-  whole entities (`CVE-2021-44228`) while whitespace boundaries are preserved.
+  whole entities (`CVE-2021-44228`), and surrounding whitespace is trimmed from
+  every span (so a token that opens a new line never shows up as `"\nNmap"`).
 - **Premium UI.** A dark "threat console" theme, per-class color coding derived
   from the class name (works for any model), a results table (**Class Name** /
   **Identified Entity**), per-class summary chips, latency, **CSV download**, and a
@@ -205,7 +217,7 @@ src/config.py           env-driven settings
 src/ner_engine.py       model-agnostic load + chunk + infer + merge
 src/file_utils.py       .txt + real-MIME + UTF-8 validation
 download_model.py       pre-build model fetch into ./model_cache/
-Dockerfile              offline image (COPYs model_cache/)
+Dockerfile              offline image (COPYs the chosen model dir)
 docker-compose.yml      MODEL_PATH = the dynamic model-swap point
 assets/styles.css       "threat console" theme
 tests/                  unit tests (no model needed)
@@ -215,13 +227,17 @@ docs/superpowers/specs/   design spec
 
 ## Notes & considerations
 
-- **Offline guarantee.** Models enter the image only via `COPY model_cache/`. At
-  runtime the app loads with `local_files_only=True` and the container sets
-  `TRANSFORMERS_OFFLINE=1` / `HF_HUB_OFFLINE=1`, so no network call can occur.
+- **Offline guarantee.** The model enters the image only via the `COPY` of its
+  directory. At runtime the app loads with `local_files_only=True` and the
+  container sets `TRANSFORMERS_OFFLINE=1` / `HF_HUB_OFFLINE=1`, so no network
+  call can occur — the container needs neither host files nor a network.
 - **One file at a time**, per the assignment.
-- **Image size.** `download_model.py` skips the redundant `pytorch_model.bin`
-  when a repo also ships `safetensors`, keeping the cache lean; otherwise keep
-  only the model(s) you intend to serve in `model_cache/` before building.
+- **Image size (~2.7 GB).** Only the chosen model's directory is baked in, and
+  `download_model.py` skips the redundant `pytorch_model.bin` (when `safetensors`
+  is present) plus the training-checkpoint artifacts (optimizer / scheduler / RNG
+  / trainer state) some repos ship — trimming SecureBERT-NER's on-disk payload
+  from ~2 GB to ~480 MB. The remainder is the unavoidable CPU `torch` +
+  `transformers` + Streamlit runtime.
 
 ## Fork 1 Research Reproduction
 
