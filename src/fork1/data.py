@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+
+
+def clean_token(token: str) -> str:
+    """Strip zero-width / format characters (Unicode category Cf) from a token.
+
+    DNRTI contains a couple of gold tokens with embedded zero-width joiners
+    (e.g. "Eset‍"), which otherwise shift character offsets and guarantee a
+    boundary miss against any model that tokenizes the visible word. Falls back to
+    the original token if cleaning would empty it.
+    """
+    cleaned = "".join(ch for ch in token if unicodedata.category(ch) != "Cf")
+    return cleaned or token
 
 DEFAULT_SPLITS = ("train", "valid", "test")
 
@@ -167,7 +180,7 @@ def load_dnrti_split(path: Path, split_name: str | None = None) -> tuple[list[Sa
             warnings.append(f"{path.name}:{line_number}: malformed line {raw!r}")
             continue
         token, tag = parts
-        tokens.append(token)
+        tokens.append(clean_token(token))
         tags.append(tag)
     flush()
     return samples, warnings

@@ -58,6 +58,24 @@ correctness. A "flip" means the CI of the gap crosses zero (ranking not signific
 more often. CyNER's main failure mode is low recall — it misses 1,436 gold spans (MIS) vs
 SecureBERT's 557.
 
+### Sanity baseline (interpretability floor)
+
+A non-neural **train-gazetteer** baseline — memorize every train entity surface, tag exact
+re-occurrences in test, score exact span+label (`baseline_lexical.jsonl`) — anchors what these
+numbers mean:
+
+| Method | Precision | Recall | F1 |
+|---|---:|---:|---:|
+| Train-gazetteer (exact span+label) | 0.389 | 0.787 | **0.521** |
+
+Two consequences: (1) the floor is *high-recall* because ~86% of test entity surfaces also occur in
+train, so any model must clear ~0.52 to earn its place; (2) the **pre-fix SecureBERT strict F1
+(0.282) sat below this dictionary floor** — a red flag that should have triggered investigation, and
+precisely the symptom of the sub-word aggregation bug ([doc 06 §7](06_model_selection.md)). With the
+fix, SecureBERT's token-level F1 (0.73) clears the floor decisively; CyNER (0.33) does not. The
+baseline is deliberately generous (no taxonomy-projection handicap, and it benefits from train/test
+surface overlap), so beating it is a floor to clear, not a target.
+
 ### Cross-experiment decision count
 
 Aggregated across all strict head-to-head configs (methodology + preprocessing + protocol +

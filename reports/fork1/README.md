@@ -67,11 +67,13 @@ records that back every table are kept alongside them:
 - `methodology_*.jsonl` — baseline scores, per-label strict, confusion matrix, error rows, seqeval cross-check.
 - `subset_study.jsonl`, `preprocessing_sensitivity.jsonl`, `protocol_comparison.jsonl`, `robustness.jsonl` — sweeps.
 - `operational_envelope.jsonl`, `calibration_*.jsonl`, `intrinsic_metrics.jsonl`, `oov_entity_analysis.jsonl` — operational/reliability.
+- `ambiguity_analysis.jsonl` — strict P/R/F1 on ambiguous vs unambiguous surfaces.
+- `baseline_lexical.jsonl` — non-neural train-gazetteer sanity floor.
 - `run_metadata.json` — environment, git commit, dataset stats, and input checksums.
 
-## Methodology update — evaluation bug fixes (see doc 06 §7)
+## Methodology update — evaluation fixes & hardening (see doc 06 §7)
 
-Three evaluation bugs were fixed in `src/fork1` after the first report pass:
+Fixed in `src/fork1` after the first report pass:
 
 1. **Sub-word fragmentation** — inference aggregation changed `simple` → `first` so multi-subword
    entities (`StoneDrill`, `CrowdStrike`) are scored as whole words instead of fragments. This was
@@ -79,6 +81,11 @@ Three evaluation bugs were fixed in `src/fork1` after the first report pass:
 2. **Per-label FP over-counting** — one-to-many label projections (e.g. CyNER `Organization`) now
    add one false positive per prediction instead of one per mapped label.
 3. **Best-overlap matching** — predictions bind to the max-overlap gold span, not the first.
+4. **Zero-width token cleaning** — loader strips Unicode format chars (e.g. `Eset‍`) so offsets align.
+5. **`hardness` subset seeding** — was deterministic (zero seed variance); now samples among
+   equally-hard ties so the three seeds are meaningful.
+6. **Sanity baseline + ambiguity metric added** — a train-gazetteer floor (F1 0.521) and an
+   ambiguous-surface evaluation, both new.
 
 **Capability is best read at the token level** (seqeval: SecureBERT 0.730, CyNER 0.334); the
 entity-level char-span F1 (0.282 / 0.104) is a conservative boundary-exact lower bound. **The model

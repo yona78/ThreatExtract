@@ -52,8 +52,10 @@ express):
 | CyNER | 0.334 | 695 |
 
 Same direction, larger magnitude, than the conservative entity-level bound (0.282 vs 0.104). The
-gap is ~2.2× either way. Under entity-level scoring with all four SemEval schemes, SecureBERT leads
-on every one and no confidence interval crosses zero:
+gap is ~2.2× either way. A non-neural **train-gazetteer baseline scores F1 0.521** (a deliberately
+generous floor — see [doc 02](02_methodology_and_results.md)): SecureBERT's token-level 0.73 clears
+it, CyNER's 0.33 does not. Under entity-level scoring with all four SemEval schemes, SecureBERT
+leads on every one and no confidence interval crosses zero:
 
 | Scheme | SecureBERT F1 | CyNER F1 | Gap | 95% CI |
 |---|---:|---:|---:|---|

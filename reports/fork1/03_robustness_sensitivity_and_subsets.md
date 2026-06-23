@@ -130,6 +130,12 @@ CI excluding 0 for all three seeds.
 | length | 50 |
 | hardness | 10 |
 
+> **Methodology fix.** The `hardness` strategy was previously deterministic (it took a fixed
+> top-k), so its three "seeds" produced identical subsets and exactly zero variance. It now samples
+> among *equally-hard* samples at the cutoff boundary, keeping the subset hard-biased while making
+> the seed meaningful. The `hardness` rows below predate this fix (variance 0) and refresh on the
+> next `make reproduce`; the other strategies are unaffected.
+
 ### F1 variance by cell (3 seeds each)
 
 | Strategy | Size | Model | Mean F1 | Variance | Min F1 | Max F1 |

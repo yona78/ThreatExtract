@@ -92,3 +92,31 @@ def test_hardness_subset_prefers_rare_labels_then_length() -> None:
     subset = sample_subset(samples, "hardness", "5", seed=4)
 
     assert {sample.sample_id for sample in subset} == {sample.sample_id for sample in hard}
+
+
+def test_hardness_subset_is_seeded_among_equally_hard_ties() -> None:
+    # 12 equally-hard samples (same rare label + length) form a tie group; pick 4.
+    samples = [_sample(index, labels=("Way",), tokens=20) for index in range(12)]
+
+    first = sample_subset(samples, "hardness", "4", seed=1)
+    repeat = sample_subset(samples, "hardness", "4", seed=1)
+
+    assert [s.sample_id for s in first] == [s.sample_id for s in repeat]  # reproducible per seed
+    assert len(first) == 4
+    # the seed must actually vary which equally-hard ties are chosen
+    selections = {
+        tuple(sorted(s.sample_id for s in sample_subset(samples, "hardness", "4", seed=k)))
+        for k in range(8)
+    }
+    assert len(selections) > 1
+
+
+def test_hardness_subset_keeps_strictly_harder_samples() -> None:
+    # One very hard sample must always be included regardless of seed.
+    hardest = [_sample(0, labels=("Way", "Purp"), tokens=40)]
+    rest = [_sample(index + 1, labels=("Malware",), tokens=4) for index in range(10)]
+    samples = hardest + rest
+
+    for seed in range(5):
+        subset = sample_subset(samples, "hardness", "3", seed=seed)
+        assert "test-00000" in {s.sample_id for s in subset}

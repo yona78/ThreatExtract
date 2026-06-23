@@ -43,6 +43,9 @@ claim is computed on the **published `test.txt` split without resampling**.
   uses **collapsed spans** (2,348), because strict NER evaluation is span-based, not token-based.
 - The split is imbalanced: `HackOrg`, `Tool`, and `SamFile` dominate support, while `Way`,
   `Purp`, and `Features` are low but non-trivial. This is why per-label analysis is necessary.
+- Two gold tokens contain embedded zero-width joiners (e.g. `Eset‍`). The loader now strips
+  Unicode format characters (category `Cf`) at read time (`data.clean_token`), so these no longer
+  shift character offsets or force a guaranteed boundary miss.
 
 ### Evaluation implication
 

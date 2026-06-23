@@ -151,19 +151,35 @@ def _length_quartile_keys(samples: list[Sample]):
     return lambda sample: by_identity[id(sample)]
 
 
+def _hardness_score(sample: Sample) -> int:
+    labels = {span.label for span in sample.gold_spans}
+    rare_hits = len(labels & RARE_LABELS)
+    return rare_hits * 1000 + len(sample.tokens)
+
+
 def _hardness_subset(
     samples: list[Sample],
     requested: int,
     rng: random.Random,
 ) -> list[Sample]:
-    scored = []
-    for index, sample in enumerate(samples):
-        labels = {span.label for span in sample.gold_spans}
-        rare_hits = len(labels & RARE_LABELS)
-        score = rare_hits * 1000 + len(sample.tokens)
-        scored.append((score, rng.random(), index))
-    scored.sort(reverse=True)
-    return _sample_indices(samples, [index for _score, _tie, index in scored[:requested]])
+    # Rank by hardness (rare labels first, then length). Samples strictly harder
+    # than the cutoff are always included; the seed only decides *which* of the
+    # equally-hard samples at the cutoff boundary are taken. This keeps the subset
+    # genuinely hard-biased while making it seed-sensitive (the previous version
+    # was deterministic, so its "3 seeds" had exactly zero variance).
+    order = sorted(
+        range(len(samples)),
+        key=lambda index: (_hardness_score(samples[index]), samples[index].index),
+        reverse=True,
+    )
+    if requested >= len(order):
+        return _sample_indices(samples, order)
+    cutoff = _hardness_score(samples[order[requested - 1]])
+    above = [index for index in order if _hardness_score(samples[index]) > cutoff]
+    tied = [index for index in order if _hardness_score(samples[index]) == cutoff]
+    need = requested - len(above)
+    chosen = above + (tied if need >= len(tied) else rng.sample(tied, need))
+    return _sample_indices(samples, chosen)
 
 
 def _fill_random(
