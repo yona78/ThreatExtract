@@ -12,6 +12,7 @@ class ExperimentConfig:
     max_length: int = 256
     normalization: str = "none"
     alignment: str = "overlap"
+    perturbation: str = "none"
     scheme: str = "strict"
     subset_strategy: str = "all"
     subset_size: str = "all"

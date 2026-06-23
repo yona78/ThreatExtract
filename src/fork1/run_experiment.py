@@ -8,7 +8,14 @@ from pathlib import Path
 
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, extract_bio_spans, load_dnrti_dataset
-from fork1.metrics import bootstrap_gap_ci, corpus_f1, mcnemar
+from fork1.metrics import (
+    bootstrap_count_gap_ci,
+    bootstrap_gap_ci,
+    corpus_f1,
+    mcnemar,
+    sample_muc_counts,
+)
+from fork1.perturb import PERTURBATIONS, keyboard_typo, random_case
 from fork1.preprocess import DETOKENIZERS, iter_contexts, normalize_text
 from fork1.runner import MODEL_ALIASES, HfTokenClassificationRunner
 
@@ -36,11 +43,14 @@ def iter_preprocessing_sweep_configs(base: ExperimentConfig = PRESETS["pdf_mappi
 
 def prepare_samples_for_config(samples: list[Sample], config: ExperimentConfig) -> list[Sample]:
     detokenizer = DETOKENIZERS[config.detok]
+    perturbation = _resolve_perturbation(config.perturbation, config.seed)
     prepared: list[Sample] = []
     for sample in samples:
         normalized_tokens = tuple(
             normalize_text(token, config.normalization) for token in sample.tokens
         )
+        if perturbation is not None:
+            normalized_tokens = tuple(perturbation(token) for token in normalized_tokens)
         text, offsets = detokenizer(list(normalized_tokens))
         gold_spans = extract_bio_spans(
             list(normalized_tokens),
@@ -60,6 +70,18 @@ def prepare_samples_for_config(samples: list[Sample], config: ExperimentConfig) 
             )
         )
     return prepared
+
+
+def _resolve_perturbation(name: str, seed: int):
+    if name == "none":
+        return None
+    if name == "random_case":
+        return random_case(seed=seed)
+    if name == "keyboard_typo":
+        return keyboard_typo(rate=0.05, seed=seed)
+    if name in PERTURBATIONS:
+        return PERTURBATIONS[name]
+    raise ValueError(f"unknown perturbation: {name}")
 
 
 def _token_offsets_for_config(sample: Sample, config: ExperimentConfig) -> list[tuple[int, int]]:
@@ -170,6 +192,23 @@ def run_config(
     offline: bool,
     cache_dir: Path | None,
 ) -> list[dict[str, object]]:
+    return run_config_with_predictions(
+        config,
+        samples,
+        device=device,
+        offline=offline,
+        cache_dir=cache_dir,
+    )[2]
+
+
+def run_config_with_predictions(
+    config: ExperimentConfig,
+    samples: list[Sample],
+    *,
+    device: str,
+    offline: bool,
+    cache_dir: Path | None,
+) -> tuple[list[Sample], dict[str, dict[str, list]], list[dict[str, object]]]:
     prepared = prepare_samples_for_config(samples, config)
     predictions_by_model = {}
     for model_name in config.models:
@@ -227,7 +266,7 @@ def run_config(
                     "flip": (ci_low <= 0 <= ci_high),
                 }
             )
-    return rows
+    return prepared, predictions_by_model, rows
 
 
 def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -306,6 +345,117 @@ def write_preprocessing_tornado(path: Path, rows: list[dict[str, object]]) -> No
     path.write_text("\n".join(parts), encoding="utf-8")
 
 
+def write_robustness_report(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Robustness Perturbations",
+        "",
+        "| Perturbation | Model | Clean F1 | Noisy F1 | Delta F1 | 95% CI |",
+        "|---|---|---:|---:|---:|---|",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['perturbation']} | {row['model']} | {float(row['clean_f1']):.4f} | "
+            f"{float(row['noisy_f1']):.4f} | {float(row['delta_f1']):.4f} | "
+            f"[{float(row['ci_low']):.4f}, {float(row['ci_high']):.4f}] |"
+        )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def iter_robustness_configs(base: ExperimentConfig = PRESETS["pdf_mapping"]):
+    yield replace(base, name="clean", perturbation="none")
+    for perturbation in ("defang", "refang", "random_case", "keyboard_typo"):
+        yield replace(
+            base,
+            name=f"perturbation={perturbation}",
+            perturbation=perturbation,
+        )
+
+
+def robustness_rows_from_config_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    clean = {str(row["model"]): row for row in rows if row["config"] == "clean"}
+    out: list[dict[str, object]] = []
+    for row in rows:
+        config = str(row["config"])
+        if not config.startswith("perturbation="):
+            continue
+        model = str(row["model"])
+        clean_row = clean[model]
+        delta = float(row["strict_f1"]) - float(clean_row["strict_f1"])
+        out.append(
+            {
+                "perturbation": config.split("=", 1)[1],
+                "model": model,
+                "clean_f1": clean_row["strict_f1"],
+                "noisy_f1": row["strict_f1"],
+                "delta_f1": delta,
+                "ci_low": delta,
+                "ci_high": delta,
+                "gap_vs_other": row["gap_vs_other"],
+                "gap_ci_low": row["ci_low"],
+                "gap_ci_high": row["ci_high"],
+                "flip": row["flip"],
+            }
+        )
+    return out
+
+
+def robustness_rows_from_outputs(
+    clean_prepared: list[Sample],
+    clean_predictions: dict[str, dict[str, list]],
+    noisy_outputs: list[
+        tuple[ExperimentConfig, list[Sample], dict[str, dict[str, list]], list[dict[str, object]]]
+    ],
+) -> list[dict[str, object]]:
+    out: list[dict[str, object]] = []
+    for config, noisy_prepared, noisy_predictions, noisy_rows in noisy_outputs:
+        perturbation = config.perturbation
+        for noisy_row in noisy_rows:
+            model = str(noisy_row["model"])
+            clean_counts = sample_muc_counts(
+                clean_prepared,
+                clean_predictions[model],
+                model,
+                config.scheme,
+            )
+            noisy_counts = sample_muc_counts(
+                noisy_prepared,
+                noisy_predictions[model],
+                model,
+                config.scheme,
+            )
+            ci_low, ci_high, delta = bootstrap_count_gap_ci(
+                noisy_counts,
+                clean_counts,
+                config.scheme,
+                config.bootstrap,
+                config.seed,
+            )
+            clean_f1 = corpus_f1(
+                clean_prepared,
+                clean_predictions[model],
+                model,
+                config.scheme,
+            )
+            out.append(
+                {
+                    "perturbation": perturbation,
+                    "model": model,
+                    "clean_f1": clean_f1,
+                    "noisy_f1": noisy_row["strict_f1"],
+                    "delta_f1": delta,
+                    "ci_low": ci_low,
+                    "ci_high": ci_high,
+                    "gap_vs_other": noisy_row["gap_vs_other"],
+                    "gap_ci_low": noisy_row["ci_low"],
+                    "gap_ci_high": noisy_row["ci_high"],
+                    "flip": noisy_row["flip"],
+                }
+            )
+    return out
+
+
 def run_preprocessing_sweep(
     *,
     dnrti_dir: Path,
@@ -335,9 +485,48 @@ def run_preprocessing_sweep(
     return rows
 
 
+def run_robustness_eval(
+    *,
+    dnrti_dir: Path,
+    out_dir: Path,
+    device: str,
+    offline: bool,
+    cache_dir: Path | None,
+    bootstrap: int | None = None,
+) -> list[dict[str, object]]:
+    samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    configs = list(iter_robustness_configs())
+    if bootstrap is not None:
+        configs = [replace(config, bootstrap=bootstrap) for config in configs]
+
+    clean_config = configs[0]
+    clean_prepared, clean_predictions, _clean_rows = run_config_with_predictions(
+        clean_config,
+        samples,
+        device=device,
+        offline=offline,
+        cache_dir=cache_dir,
+    )
+    noisy_outputs = []
+    for config in configs[1:]:
+        prepared, predictions, rows = run_config_with_predictions(
+            config,
+            samples,
+            device=device,
+            offline=offline,
+            cache_dir=cache_dir,
+        )
+        noisy_outputs.append((config, prepared, predictions, rows))
+
+    rows = robustness_rows_from_outputs(clean_prepared, clean_predictions, noisy_outputs)
+    write_jsonl(out_dir / "robustness.jsonl", rows)
+    write_robustness_report(out_dir / "robustness.md", rows)
+    return rows
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Fork 1 experiments.")
-    parser.add_argument("--sweep", choices=["preprocessing"], required=True)
+    parser.add_argument("--sweep", choices=["preprocessing", "robustness"], required=True)
     parser.add_argument("--dnrti-dir", type=Path, default=Path("data/dnrti"))
     parser.add_argument("--out-dir", type=Path, default=Path("reports/fork1"))
     parser.add_argument("--device", choices=["cpu", "mps"], default="mps")
@@ -348,6 +537,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.sweep == "preprocessing":
         run_preprocessing_sweep(
+            dnrti_dir=args.dnrti_dir,
+            out_dir=args.out_dir,
+            device=args.device,
+            offline=args.offline,
+            cache_dir=args.cache_dir,
+            bootstrap=args.bootstrap,
+        )
+    elif args.sweep == "robustness":
+        run_robustness_eval(
             dnrti_dir=args.dnrti_dir,
             out_dir=args.out_dir,
             device=args.device,

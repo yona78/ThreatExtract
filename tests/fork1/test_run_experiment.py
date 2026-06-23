@@ -9,6 +9,7 @@ from fork1.run_experiment import (
     iter_preprocessing_sweep_configs,
     prepare_samples_for_config,
     predict_samples,
+    write_robustness_report,
     write_preprocessing_tornado,
     write_preprocessing_report,
 )
@@ -57,6 +58,26 @@ def test_prepare_samples_rebuilds_text_offsets_for_config_detok() -> None:
     assert prepared[0].gold_spans == [
         Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
     ]
+
+
+def test_prepare_samples_applies_named_perturbation_before_detok() -> None:
+    sample = Sample(
+        sample_id="test-0",
+        split="test",
+        index=0,
+        text="",
+        tokens=("http://1.1.1.1",),
+        tags=("B-SamFile",),
+        gold_spans=[],
+    )
+
+    prepared = prepare_samples_for_config(
+        [sample],
+        ExperimentConfig(name="defang", perturbation="defang"),
+    )
+
+    assert prepared[0].text == "hxxp://1[.]1[.]1[.]1"
+    assert prepared[0].gold_spans[0].text == "hxxp://1[.]1[.]1[.]1"
 
 
 class FakeRunner:
@@ -155,6 +176,26 @@ def test_write_preprocessing_tornado_groups_swing_by_lever(tmp_path: Path) -> No
     assert "<svg" in text
     assert "detok" in text
     assert "securebert" in text
+
+
+def test_write_robustness_report_includes_delta_f1(tmp_path: Path) -> None:
+    rows = [
+        {
+            "perturbation": "defang",
+            "model": "securebert",
+            "clean_f1": 0.28,
+            "noisy_f1": 0.20,
+            "delta_f1": -0.08,
+            "ci_low": -0.10,
+            "ci_high": -0.05,
+        }
+    ]
+
+    write_robustness_report(tmp_path / "robustness.md", rows)
+
+    text = (tmp_path / "robustness.md").read_text(encoding="utf-8")
+    assert "| Perturbation | Model | Clean F1 | Noisy F1 | Delta F1 | 95% CI |" in text
+    assert "defang" in text
 
 
 def test_run_experiment_module_help_works_from_repo_root() -> None:

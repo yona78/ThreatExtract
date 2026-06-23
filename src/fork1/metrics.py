@@ -132,14 +132,24 @@ def bootstrap_gap_ci(
 ) -> tuple[float, float, float]:
     counts_a = sample_muc_counts(samples, preds_a, model_a, scheme)
     counts_b = sample_muc_counts(samples, preds_b, model_b, scheme)
+    return bootstrap_count_gap_ci(counts_a, counts_b, scheme, n, seed)
+
+
+def bootstrap_count_gap_ci(
+    counts_a: list[MucCounts],
+    counts_b: list[MucCounts],
+    scheme: str,
+    n: int,
+    seed: int,
+) -> tuple[float, float, float]:
     gap = _f1_from_sample_counts(counts_a, scheme) - _f1_from_sample_counts(counts_b, scheme)
-    if not samples or n <= 0:
+    if not counts_a or n <= 0:
         return gap, gap, gap
 
     rng = random.Random(seed)
     gaps: list[float] = []
     for _ in range(n):
-        indices = [rng.randrange(len(samples)) for _ in samples]
+        indices = [rng.randrange(len(counts_a)) for _ in counts_a]
         gaps.append(
             _f1_from_sample_counts(counts_a, scheme, indices)
             - _f1_from_sample_counts(counts_b, scheme, indices)

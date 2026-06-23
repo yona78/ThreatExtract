@@ -1,5 +1,6 @@
 from fork1.data import Sample, Span
 from fork1.metrics import bootstrap_gap_ci, corpus_f1, mcnemar, sample_muc_counts, score
+from fork1.metrics import bootstrap_count_gap_ci
 
 
 def _g(start: int, end: int, label: str) -> Span:
@@ -100,6 +101,17 @@ def test_bootstrap_ci_orders_low_high() -> None:
         n=200,
         seed=1,
     )
+
+    assert low <= gap <= high
+    assert gap == 0.0
+
+
+def test_bootstrap_count_gap_ci_orders_low_high() -> None:
+    samples = [_sample(f"test-{index}", [_g(0, 5, "HackOrg")]) for index in range(5)]
+    preds = {sample.sample_id: [_p(0, 5, "APT")] for sample in samples}
+    counts = sample_muc_counts(samples, preds, "securebert", "strict")
+
+    low, high, gap = bootstrap_count_gap_ci(counts, counts, "strict", n=200, seed=1)
 
     assert low <= gap <= high
     assert gap == 0.0
