@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import html
 import json
+from collections import defaultdict
 from dataclasses import replace
 from pathlib import Path
+from statistics import mean, variance
 
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, extract_bio_spans, load_dnrti_dataset
@@ -28,6 +30,9 @@ SWEEP_LEVELS = {
     "normalization": ("none", "nfkc", "refang", "lower"),
     "alignment": ("overlap", "majority", "contained"),
 }
+SUBSET_STRATEGIES = ("random", "label_stratified", "density", "length", "hardness")
+SUBSET_SIZES = ("10", "50", "100", "250", "all")
+SUBSET_SEEDS = (1, 2, 3)
 
 
 def iter_preprocessing_sweep_configs(base: ExperimentConfig = PRESETS["pdf_mapping"]):
@@ -40,6 +45,19 @@ def iter_preprocessing_sweep_configs(base: ExperimentConfig = PRESETS["pdf_mappi
                 continue
             seen.add(config)
             yield config
+
+
+def iter_subset_study_configs(base: ExperimentConfig = PRESETS["pdf_mapping"]):
+    for strategy in SUBSET_STRATEGIES:
+        for size in SUBSET_SIZES:
+            for seed in SUBSET_SEEDS:
+                yield replace(
+                    base,
+                    name=f"subset={strategy},size={size},seed={seed}",
+                    subset_strategy=strategy,
+                    subset_size=size,
+                    seed=seed,
+                )
 
 
 def prepare_samples_for_config(samples: list[Sample], config: ExperimentConfig) -> list[Sample]:
@@ -225,6 +243,24 @@ def run_config_with_predictions(
         runner.load()
         predictions_by_model[model_name] = predict_samples(prepared, runner, config)
 
+    rows = _comparison_rows(config, prepared, predictions_by_model)
+    for row in rows:
+        row.update(
+            {
+                "subset_strategy": config.subset_strategy,
+                "subset_size": config.subset_size,
+                "subset_seed": config.seed,
+                "samples": len(prepared),
+            }
+        )
+    return prepared, predictions_by_model, rows
+
+
+def _comparison_rows(
+    config: ExperimentConfig,
+    prepared: list[Sample],
+    predictions_by_model: dict[str, dict[str, list]],
+) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     if len(config.models) == 2:
         model_a, model_b = config.models
@@ -268,7 +304,26 @@ def run_config_with_predictions(
                     "flip": (ci_low <= 0 <= ci_high),
                 }
             )
-    return prepared, predictions_by_model, rows
+    return rows
+
+
+def subset_rows_from_predictions(
+    config: ExperimentConfig,
+    prepared: list[Sample],
+    predictions_by_model: dict[str, dict[str, list]],
+) -> list[dict[str, object]]:
+    subset = sample_subset(prepared, config.subset_strategy, config.subset_size, config.seed)
+    rows = _comparison_rows(config, subset, predictions_by_model)
+    for row in rows:
+        row.update(
+            {
+                "subset_strategy": config.subset_strategy,
+                "subset_size": config.subset_size,
+                "subset_seed": config.seed,
+                "samples": len(subset),
+            }
+        )
+    return rows
 
 
 def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -345,6 +400,218 @@ def write_preprocessing_tornado(path: Path, rows: list[dict[str, object]]) -> No
         )
     parts.append("</svg>")
     path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def summarize_subset_cells(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    grouped: dict[tuple[str, str, str], list[float]] = defaultdict(list)
+    for row in rows:
+        grouped[
+            (
+                str(row["subset_strategy"]),
+                str(row["subset_size"]),
+                str(row["model"]),
+            )
+        ].append(float(row["strict_f1"]))
+
+    out = []
+    for strategy, size, model in sorted(
+        grouped,
+        key=lambda item: (
+            SUBSET_STRATEGIES.index(item[0]) if item[0] in SUBSET_STRATEGIES else 999,
+            _subset_size_sort_key(item[1]),
+            item[2],
+        ),
+    ):
+        values = grouped[(strategy, size, model)]
+        out.append(
+            {
+                "subset_strategy": strategy,
+                "subset_size": size,
+                "model": model,
+                "seeds": len(values),
+                "mean_f1": mean(values),
+                "variance_f1": variance(values) if len(values) > 1 else 0.0,
+                "min_f1": min(values),
+                "max_f1": max(values),
+            }
+        )
+    return out
+
+
+def min_faithful_subset_by_strategy(
+    rows: list[dict[str, object]],
+    *,
+    full_winner: str,
+) -> dict[str, str]:
+    strategies = [
+        strategy
+        for strategy in SUBSET_STRATEGIES
+        if any(row["subset_strategy"] == strategy for row in rows)
+    ]
+    if full_winner == "tie":
+        return {strategy: "none" for strategy in strategies}
+
+    out: dict[str, str] = {}
+    for strategy in strategies:
+        out[strategy] = "none"
+        for size in SUBSET_SIZES:
+            winner_rows = [
+                row
+                for row in rows
+                if row["subset_strategy"] == strategy
+                and row["subset_size"] == size
+                and row["model"] == full_winner
+            ]
+            if {int(row["subset_seed"]) for row in winner_rows} != set(SUBSET_SEEDS):
+                continue
+            if all(float(row["ci_low"]) > 0 for row in winner_rows):
+                out[strategy] = size
+                break
+    return out
+
+
+def full_split_winner(rows: list[dict[str, object]]) -> str:
+    for row in rows:
+        if row["subset_size"] != "all":
+            continue
+        if float(row["ci_low"]) > 0:
+            return str(row["model"])
+    return "tie"
+
+
+def write_subset_study_report(
+    path: Path,
+    rows: list[dict[str, object]],
+    *,
+    min_faithful: dict[str, str],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    summary = summarize_subset_cells(rows)
+    lines = [
+        "# Subset Study",
+        "",
+        "The min-faithful subset is the smallest size where the full-split winner wins "
+        "with a 95% CI excluding 0 for all three seeds.",
+        "",
+        "## Min-Faithful Subset",
+        "",
+        "| Strategy | Min-faithful subset |",
+        "|---|---|",
+    ]
+    for strategy in SUBSET_STRATEGIES:
+        lines.append(f"| {strategy} | {min_faithful.get(strategy, 'none')} |")
+
+    lines.extend(
+        [
+            "",
+            "## F1 Variance By Cell",
+            "",
+            "| Strategy | Size | Model | Seeds | Mean F1 | Variance | Min F1 | Max F1 |",
+            "|---|---|---|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for row in summary:
+        lines.append(
+            f"| {row['subset_strategy']} | {row['subset_size']} | {row['model']} | "
+            f"{int(row['seeds'])} | {float(row['mean_f1']):.4f} | "
+            f"{float(row['variance_f1']):.6f} | {float(row['min_f1']):.4f} | "
+            f"{float(row['max_f1']):.4f} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Per-Seed Decisions",
+            "",
+            "| Strategy | Size | Seed | Model | Samples | Strict F1 | Gap | 95% CI | Flip? |",
+            "|---|---|---:|---|---:|---:|---:|---|---|",
+        ]
+    )
+    for row in _sort_subset_rows(rows):
+        lines.append(
+            f"| {row['subset_strategy']} | {row['subset_size']} | {int(row['subset_seed'])} | "
+            f"{row['model']} | {int(row['samples'])} | {float(row['strict_f1']):.4f} | "
+            f"{float(row['gap_vs_other']):.4f} | "
+            f"[{float(row['ci_low']):.4f}, {float(row['ci_high']):.4f}] | "
+            f"{'yes' if row['flip'] else 'no'} |"
+        )
+
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_subset_curve(path: Path, rows: list[dict[str, object]], strategy: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    summary = [row for row in summarize_subset_cells(rows) if row["subset_strategy"] == strategy]
+    width = 760
+    height = 300
+    left = 70
+    right = 30
+    top = 30
+    bottom = 50
+    plot_width = width - left - right
+    plot_height = height - top - bottom
+    max_f1 = max((float(row["max_f1"]) for row in summary), default=1.0) or 1.0
+    x_positions = {
+        size: left + (plot_width * index / (len(SUBSET_SIZES) - 1))
+        for index, size in enumerate(SUBSET_SIZES)
+    }
+    palette = {"securebert": "#2f6fbb", "cyner": "#c45746"}
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}">',
+        '<rect width="100%" height="100%" fill="white"/>',
+        f'<text x="20" y="22" font-family="Arial" font-size="16" font-weight="700">'
+        f"{html.escape(strategy)} subset F1 vs size</text>",
+        f'<line x1="{left}" y1="{height - bottom}" x2="{width - right}" '
+        f'y2="{height - bottom}" stroke="#444"/>',
+        f'<line x1="{left}" y1="{top}" x2="{left}" y2="{height - bottom}" stroke="#444"/>',
+    ]
+    for size, x in x_positions.items():
+        parts.append(
+            f'<text x="{x - 12}" y="{height - 24}" font-family="Arial" '
+            f'font-size="11">{html.escape(size)}</text>'
+        )
+    for model in ("securebert", "cyner"):
+        points = []
+        for row in summary:
+            if row["model"] != model:
+                continue
+            x = x_positions[str(row["subset_size"])]
+            y = height - bottom - (float(row["mean_f1"]) / max_f1 * plot_height)
+            points.append((x, y))
+        if not points:
+            continue
+        point_text = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+        parts.append(
+            f'<polyline fill="none" stroke="{palette[model]}" stroke-width="2" '
+            f'points="{point_text}"/>'
+        )
+        for x, y in points:
+            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{palette[model]}"/>')
+    parts.append("</svg>")
+    path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def _sort_subset_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    return sorted(
+        rows,
+        key=lambda row: (
+            (
+                SUBSET_STRATEGIES.index(str(row["subset_strategy"]))
+                if str(row["subset_strategy"]) in SUBSET_STRATEGIES
+                else 999
+            ),
+            _subset_size_sort_key(str(row["subset_size"])),
+            int(row["subset_seed"]),
+            str(row["model"]),
+        ),
+    )
+
+
+def _subset_size_sort_key(size: str) -> int:
+    return 10**9 if size == "all" else int(size)
 
 
 def write_robustness_report(path: Path, rows: list[dict[str, object]]) -> None:
@@ -530,9 +797,62 @@ def run_robustness_eval(
     return rows
 
 
+def run_subset_study(
+    *,
+    dnrti_dir: Path,
+    out_dir: Path,
+    device: str,
+    offline: bool,
+    cache_dir: Path | None,
+    bootstrap: int | None = None,
+) -> list[dict[str, object]]:
+    samples, _warnings, _stats = load_dnrti_dataset(dnrti_dir, "test")
+    full_config = replace(
+        PRESETS["pdf_mapping"],
+        name="subset_full_prediction_base",
+        subset_strategy="all",
+        subset_size="all",
+        seed=SUBSET_SEEDS[0],
+    )
+    if bootstrap is not None:
+        full_config = replace(full_config, bootstrap=bootstrap)
+
+    prepared, predictions, _rows = run_config_with_predictions(
+        full_config,
+        samples,
+        device=device,
+        offline=offline,
+        cache_dir=cache_dir,
+    )
+
+    rows: list[dict[str, object]] = []
+    configs = list(iter_subset_study_configs())
+    if bootstrap is not None:
+        configs = [replace(config, bootstrap=bootstrap) for config in configs]
+    for config in configs:
+        rows.extend(subset_rows_from_predictions(config, prepared, predictions))
+
+    write_jsonl(out_dir / "subset_study.jsonl", rows)
+    full_winner = full_split_winner(rows)
+    min_faithful = min_faithful_subset_by_strategy(rows, full_winner=full_winner)
+    write_subset_study_report(
+        out_dir / "subset_study.md",
+        rows,
+        min_faithful=min_faithful,
+    )
+    for strategy in SUBSET_STRATEGIES:
+        if any(row["subset_strategy"] == strategy for row in rows):
+            write_subset_curve(out_dir / "figures" / f"subset_{strategy}.svg", rows, strategy)
+    return rows
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Fork 1 experiments.")
-    parser.add_argument("--sweep", choices=["preprocessing", "robustness"], required=True)
+    parser.add_argument(
+        "--sweep",
+        choices=["preprocessing", "subset", "robustness"],
+        required=True,
+    )
     parser.add_argument("--dnrti-dir", type=Path, default=Path("data/dnrti"))
     parser.add_argument("--out-dir", type=Path, default=Path("reports/fork1"))
     parser.add_argument("--device", choices=["cpu", "mps"], default="mps")
@@ -543,6 +863,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.sweep == "preprocessing":
         run_preprocessing_sweep(
+            dnrti_dir=args.dnrti_dir,
+            out_dir=args.out_dir,
+            device=args.device,
+            offline=args.offline,
+            cache_dir=args.cache_dir,
+            bootstrap=args.bootstrap,
+        )
+    elif args.sweep == "subset":
+        run_subset_study(
             dnrti_dir=args.dnrti_dir,
             out_dir=args.out_dir,
             device=args.device,

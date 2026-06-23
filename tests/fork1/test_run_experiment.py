@@ -2,14 +2,21 @@ from pathlib import Path
 import subprocess
 import sys
 
+import fork1.run_experiment as run_experiment
 from fork1.config import PRESETS, ExperimentConfig
 from fork1.data import Sample, Span
 from fork1.run_experiment import (
     apply_alignment_policy,
     iter_preprocessing_sweep_configs,
+    iter_subset_study_configs,
+    min_faithful_subset_by_strategy,
     prepare_samples_for_config,
     predict_samples,
+    run_subset_study,
+    subset_rows_from_predictions,
+    summarize_subset_cells,
     write_robustness_report,
+    write_subset_study_report,
     write_preprocessing_tornado,
     write_preprocessing_report,
 )
@@ -44,6 +51,21 @@ def test_preprocessing_sweep_configs_vary_one_lever_from_pdf_mapping() -> None:
         <= 1
         for config in configs
     )
+
+
+def test_subset_study_configs_cover_strategy_size_seed_grid() -> None:
+    configs = list(iter_subset_study_configs(PRESETS["pdf_mapping"]))
+
+    assert len(configs) == 75
+    assert {(config.subset_strategy, config.subset_size, config.seed) for config in configs} >= {
+        ("random", "10", 1),
+        ("label_stratified", "100", 2),
+        ("density", "250", 3),
+        ("length", "all", 1),
+        ("hardness", "50", 3),
+    }
+    assert all(config.detok == "single_space" for config in configs)
+    assert all(config.alignment == "overlap" for config in configs)
 
 
 def test_prepare_samples_rebuilds_text_offsets_for_config_detok() -> None:
@@ -106,6 +128,53 @@ def test_prepare_samples_applies_subset_config() -> None:
 
     assert len(prepared) == 2
     assert [sample.index for sample in prepared] == sorted(sample.index for sample in prepared)
+
+
+def test_subset_rows_from_predictions_scores_selected_samples_only() -> None:
+    samples = [
+        Sample(
+            sample_id=f"test-{index}",
+            split="test",
+            index=index,
+            text="APT",
+            tokens=("APT",),
+            tags=("B-HackOrg",),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
+            ],
+        )
+        for index in range(4)
+    ]
+    predictions = {
+        "securebert": {
+            "test-0": [
+                Span(label="APT", start=0, end=3, text="APT", score=0.9, source="securebert")
+            ],
+            "test-1": [
+                Span(label="APT", start=0, end=3, text="APT", score=0.9, source="securebert")
+            ],
+            "test-2": [],
+            "test-3": [],
+        },
+        "cyner": {sample.sample_id: [] for sample in samples},
+    }
+
+    rows = subset_rows_from_predictions(
+        ExperimentConfig(
+            name="subset=random,size=2,seed=3",
+            subset_strategy="random",
+            subset_size="2",
+            seed=3,
+            bootstrap=0,
+        ),
+        samples,
+        predictions,
+    )
+
+    assert {row["model"] for row in rows} == {"securebert", "cyner"}
+    assert {row["samples"] for row in rows} == {2}
+    assert all(row["subset_strategy"] == "random" for row in rows)
+    assert all(row["subset_size"] == "2" for row in rows)
 
 
 class FakeRunner:
@@ -233,6 +302,168 @@ def test_write_robustness_report_includes_delta_f1(tmp_path: Path) -> None:
     assert "defang" in text
 
 
+def test_summarize_subset_cells_reports_variance() -> None:
+    rows = [
+        {
+            "subset_strategy": "random",
+            "subset_size": "10",
+            "model": "securebert",
+            "strict_f1": 0.2,
+        },
+        {
+            "subset_strategy": "random",
+            "subset_size": "10",
+            "model": "securebert",
+            "strict_f1": 0.4,
+        },
+    ]
+
+    summary = summarize_subset_cells(rows)
+
+    assert summary == [
+        {
+            "subset_strategy": "random",
+            "subset_size": "10",
+            "model": "securebert",
+            "seeds": 2,
+            "mean_f1": 0.30000000000000004,
+            "variance_f1": 0.020000000000000004,
+            "min_f1": 0.2,
+            "max_f1": 0.4,
+        }
+    ]
+
+
+def test_min_faithful_subset_requires_all_three_seeds_to_exclude_zero() -> None:
+    rows = []
+    for size, low in (("10", -0.01), ("50", 0.02)):
+        for seed in (1, 2, 3):
+            rows.append(
+                {
+                    "subset_strategy": "random",
+                    "subset_size": size,
+                    "subset_seed": seed,
+                    "model": "securebert",
+                    "gap_vs_other": 0.10,
+                    "ci_low": low,
+                    "ci_high": 0.20,
+                }
+            )
+    for seed in (1, 2, 3):
+        rows.append(
+            {
+                "subset_strategy": "random",
+                "subset_size": "all",
+                "subset_seed": seed,
+                "model": "securebert",
+                "gap_vs_other": 0.10,
+                "ci_low": 0.04,
+                "ci_high": 0.18,
+            }
+        )
+
+    assert min_faithful_subset_by_strategy(rows, full_winner="securebert") == {"random": "50"}
+
+
+def test_write_subset_study_report_includes_summary_and_min_faithful(
+    tmp_path: Path,
+) -> None:
+    rows = [
+        {
+            "subset_strategy": "random",
+            "subset_size": "10",
+            "subset_seed": 1,
+            "samples": 10,
+            "model": "securebert",
+            "strict_f1": 0.2,
+            "gap_vs_other": 0.1,
+            "ci_low": 0.02,
+            "ci_high": 0.2,
+            "flip": False,
+        }
+    ]
+
+    write_subset_study_report(
+        tmp_path / "subset_study.md",
+        rows,
+        min_faithful={"random": "10"},
+    )
+
+    text = (tmp_path / "subset_study.md").read_text(encoding="utf-8")
+    assert "| Strategy | Size | Model | Seeds | Mean F1 | Variance | Min F1 | Max F1 |" in text
+    assert "| random | 10 |" in text
+    assert "min-faithful subset" in text
+
+
+def test_run_subset_study_reuses_full_predictions(monkeypatch, tmp_path: Path) -> None:
+    samples = [
+        Sample(
+            sample_id=f"test-{index}",
+            split="test",
+            index=index,
+            text="APT",
+            tokens=("APT",),
+            tags=("B-HackOrg",),
+            gold_spans=[
+                Span(label="HackOrg", start=0, end=3, text="APT", score=None, source="gold")
+            ],
+        )
+        for index in range(4)
+    ]
+    predictions = {
+        "securebert": {
+            sample.sample_id: [
+                Span(label="APT", start=0, end=3, text="APT", score=0.9, source="securebert")
+            ]
+            for sample in samples
+        },
+        "cyner": {sample.sample_id: [] for sample in samples},
+    }
+    calls = []
+
+    def fake_load_dnrti_dataset(dnrti_dir, split):
+        return samples, [], []
+
+    def fake_run_config_with_predictions(config, samples_arg, *, device, offline, cache_dir):
+        calls.append(config)
+        return samples_arg, predictions, []
+
+    monkeypatch.setattr(run_experiment, "load_dnrti_dataset", fake_load_dnrti_dataset)
+    monkeypatch.setattr(
+        run_experiment,
+        "run_config_with_predictions",
+        fake_run_config_with_predictions,
+    )
+    monkeypatch.setattr(
+        run_experiment,
+        "iter_subset_study_configs",
+        lambda: [
+            ExperimentConfig(
+                name="subset=random,size=10,seed=1",
+                subset_strategy="random",
+                subset_size="10",
+                seed=1,
+                bootstrap=0,
+            )
+        ],
+    )
+
+    rows = run_subset_study(
+        dnrti_dir=tmp_path / "dnrti",
+        out_dir=tmp_path / "reports",
+        device="mps",
+        offline=True,
+        cache_dir=tmp_path / "cache",
+        bootstrap=0,
+    )
+
+    assert len(calls) == 1
+    assert rows
+    assert (tmp_path / "reports" / "subset_study.jsonl").is_file()
+    assert (tmp_path / "reports" / "subset_study.md").is_file()
+    assert (tmp_path / "reports" / "figures" / "subset_random.svg").is_file()
+
+
 def test_run_experiment_module_help_works_from_repo_root() -> None:
     root = Path(__file__).resolve().parents[2]
 
@@ -246,3 +477,4 @@ def test_run_experiment_module_help_works_from_repo_root() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "--sweep" in result.stdout
+    assert "subset" in result.stdout
