@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="360" viewBox="0 0 820 360">
+<rect width="100%" height="100%" fill="white"/>
+<text x="24" y="24" font-family="Arial" font-size="16" font-weight="700">Operational p50 latency by token length</text>
+<line x1="80" y1="306" x2="780" y2="306" stroke="#444"/>
+<line x1="80" y1="34" x2="80" y2="306" stroke="#444"/>
+<text x="70.0" y="332" font-family="Arial" font-size="11">16</text>
+<text x="245.0" y="332" font-family="Arial" font-size="11">32</text>
+<text x="420.0" y="332" font-family="Arial" font-size="11">64</text>
+<text x="595.0" y="332" font-family="Arial" font-size="11">128</text>
+<text x="770.0" y="332" font-family="Arial" font-size="11">256</text>
+<polyline fill="none" stroke="#2f6fbb" stroke-width="2" points="80.0,304.1 255.0,304.0 430.0,303.8 605.0,301.6 780.0,300.3"/>
+<text x="786.0" y="300.3" font-family="Arial" font-size="11" fill="#2f6fbb">cpu/securebert</text>
+<polyline fill="none" stroke="#c45746" stroke-width="2" points="80.0,304.2 255.0,303.8 430.0,302.8 605.0,301.0 780.0,296.5"/>
+<text x="786.0" y="296.5" font-family="Arial" font-size="11" fill="#c45746">cpu/cyner</text>
+<polyline fill="none" stroke="#6aa6e8" stroke-width="2" points="80.0,304.9 255.0,305.0 430.0,304.7 605.0,304.4 780.0,302.9"/>
+<text x="786.0" y="302.9" font-family="Arial" font-size="11" fill="#6aa6e8">mps/securebert</text>
+<polyline fill="none" stroke="#e08a7c" stroke-width="2" points="80.0,304.3 255.0,304.9 430.0,304.7 605.0,303.9 780.0,302.2"/>
+<text x="786.0" y="302.2" font-family="Arial" font-size="11" fill="#e08a7c">mps/cyner</text>
+</svg>
