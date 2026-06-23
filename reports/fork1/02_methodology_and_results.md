@@ -197,7 +197,28 @@ tooling vocabulary — reinforcing the bias caveat in [doc 04](04_leakage_bias_a
 
 ---
 
-## 6. Threats to validity
+## 6. Ambiguous-word performance
+
+Some entity surfaces are genuinely ambiguous — the same string carries different DNRTI labels in
+different contexts. There are **34 such surfaces (148 gold instances, 6.3% of gold)**, e.g.
+`ransomware` ∈ {SamFile, Tool}, `EternalBlue` ∈ {Exp, SamFile}, `stealing` ∈ {OffAct, Purp},
+`Tor` ∈ {SamFile, Tool}. These are the hardest cases for type assignment. Strict P/R/F1 split by
+ambiguity (`ambiguity_analysis.jsonl`):
+
+| Model | Surface class | Support | Precision | Recall | F1 |
+|---|---|---:|---:|---:|---:|
+| securebert | ambiguous | 148 | 0.368 | 0.311 | 0.337 |
+| securebert | unambiguous | 2200 | 0.219 | 0.387 | 0.280 |
+| cyner | ambiguous | 148 | 0.125 | 0.034 | 0.053 |
+| cyner | unambiguous | 2200 | 0.119 | 0.096 | 0.106 |
+
+CyNER degrades sharply on ambiguous surfaces (F1 0.106 → 0.053, recall 0.096 → 0.034): its coarse
+taxonomy can't use context to disambiguate. SecureBERT holds up (higher precision on familiar
+ambiguous terms, slightly lower recall — net F1 stable), further evidence that its finer label
+space helps where the data is hard. (Strict-hit rate on gold instances tells the same story:
+SecureBERT 31% ambiguous vs 39% unambiguous; CyNER 3% vs 10%.)
+
+## 7. Threats to validity
 
 - The label projection structurally favors SecureBERT; the bias adjustment in [doc 04](04_leakage_bias_and_intrinsics.md) is a ceiling-based sensitivity check, not proof of independent capability.
 - APTNER/DNRTI raw-text overlap could not be quantified offline (`data/aptner/` absent), so leakage risk is *unquantified, not disproven*.

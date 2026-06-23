@@ -430,6 +430,69 @@ def per_label_strict_rows(samples, preds, model_name: str) -> list[dict[str, obj
     return out
 
 
+def ambiguous_surfaces(samples) -> set[str]:
+    """Gold entity surfaces that appear with more than one DNRTI label.
+
+    These are genuinely ambiguous mentions (e.g. "ransomware" tagged as both
+    SamFile and Tool, "EternalBlue" as both Exp and SamFile) where the correct
+    label depends on context, so they are the hardest cases for type assignment.
+    """
+    labels_by_surface: dict[str, set[str]] = {}
+    for sample in samples:
+        for span in sample.gold_spans:
+            key = _surface_key(_span_text(sample, span))
+            if key:
+                labels_by_surface.setdefault(key, set()).add(span.label)
+    return {key for key, labels in labels_by_surface.items() if len(labels) > 1}
+
+
+def ambiguity_rows(samples, preds, model_name: str) -> list[dict[str, object]]:
+    """Strict P/R/F1 split by whether the gold surface is ambiguous (>1 gold label)."""
+    ambiguous = ambiguous_surfaces(samples)
+    counts = {
+        "ambiguous": Counter({"tp": 0, "fp": 0, "fn": 0}),
+        "unambiguous": Counter({"tp": 0, "fp": 0, "fn": 0}),
+    }
+
+    def status(text: str) -> str:
+        return "ambiguous" if _surface_key(text) in ambiguous else "unambiguous"
+
+    for row in entity_error_records(samples, preds, model_name):
+        bucket = row["bucket"]
+        if bucket == "strict_correct":
+            counts[status(str(row["gold_text"]))]["tp"] += 1
+        elif bucket == "strict_drop_fn":
+            counts[status(str(row["gold_text"]))]["fn"] += 1
+        elif bucket in {"type_error", "boundary_error"}:
+            counts[status(str(row["gold_text"]))]["fn"] += 1
+            counts[status(str(row["predicted_text"]))]["fp"] += 1
+        elif bucket == "spurious_fp":
+            counts[status(str(row["predicted_text"]))]["fp"] += 1
+
+    out = []
+    for surface_class in ("ambiguous", "unambiguous"):
+        tp = counts[surface_class]["tp"]
+        fp = counts[surface_class]["fp"]
+        fn = counts[surface_class]["fn"]
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+        out.append(
+            {
+                "model": model_name,
+                "surface_class": surface_class,
+                "support": tp + fn,
+                "true_positive": tp,
+                "false_positive": fp,
+                "false_negative": fn,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+            }
+        )
+    return out
+
+
 def oov_entity_rows(train_samples, test_samples, preds, model_name: str) -> list[dict[str, object]]:
     train_surfaces = {
         _surface_key(_span_text(sample, span))

@@ -2,6 +2,7 @@ import math
 
 from fork1.data import Sample, Span
 from fork1.metrics import (
+    ambiguity_rows,
     bootstrap_count_gap_ci,
     bootstrap_gap_ci,
     corpus_f1,
@@ -281,6 +282,29 @@ def test_muc_matches_best_overlap_gold_not_first() -> None:
     out = score(gold, pred, "securebert")
 
     assert out["type"]["cor"] == 1
+
+
+def test_ambiguity_rows_split_ambiguous_and_unambiguous_surfaces() -> None:
+    # "RANSOM" appears with two gold labels (Tool and SamFile) -> ambiguous.
+    # "KASPER" appears with one label -> unambiguous.
+    samples = [
+        _sample("test-0", [_g(0, 6, "Tool", "RANSOM")], text="RANSOM"),
+        _sample("test-1", [_g(0, 6, "SamFile", "RANSOM")], text="RANSOM"),
+        _sample("test-2", [_g(0, 6, "SecTeam", "KASPER")], text="KASPER"),
+    ]
+    preds = {
+        "test-0": [_p(0, 6, "MAL", text="RANSOM")],
+        "test-1": [],
+        "test-2": [_p(0, 6, "SECTEAM", text="KASPER")],
+    }
+
+    rows = ambiguity_rows(samples, preds, "securebert")
+    by_class = {row["surface_class"]: row for row in rows}
+
+    assert by_class["ambiguous"]["support"] == 2
+    assert by_class["ambiguous"]["true_positive"] == 1
+    assert by_class["unambiguous"]["support"] == 1
+    assert by_class["unambiguous"]["true_positive"] == 1
 
 
 def test_oov_entity_rows_split_seen_and_unseen_surfaces() -> None:

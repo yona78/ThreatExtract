@@ -98,6 +98,11 @@ Two product-critical facts:
    SecureBERT has five classes at F1 ≥ 0.52 and the only label SecureBERT loses outright (`Exp`) is
    a minor one.
 
+**Ambiguous words** (same surface, multiple gold labels — 148 instances, e.g. `ransomware`,
+`EternalBlue`, `Tor`) are the hardest type-assignment cases. CyNER collapses on them
+(F1 0.106→0.053) because its coarse taxonomy can't disambiguate by context; SecureBERT stays stable
+(0.280→0.337). See [doc 02 §6](02_methodology_and_results.md).
+
 ---
 
 ## 4. Stability — the ranking does not flip

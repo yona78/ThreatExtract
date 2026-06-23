@@ -22,6 +22,7 @@ from fork1.intrinsic import (
 )
 from fork1.mapping import map_model_label_to_dnrti, strip_bio, unique_mapped_dnrti_labels
 from fork1.metrics import (
+    ambiguity_rows,
     bootstrap_count_gap_ci,
     bootstrap_gap_ci,
     corpus_f1,
@@ -1457,12 +1458,18 @@ def run_methodology_eval(
         for model_name in config.models
         for row in oov_entity_rows(train_samples, prepared, predictions[model_name], model_name)
     ]
+    ambiguity_analysis_rows = [
+        row
+        for model_name in config.models
+        for row in ambiguity_rows(prepared, predictions[model_name], model_name)
+    ]
     write_jsonl(out_dir / "methodology_baseline.jsonl", rows)
     write_jsonl(out_dir / "methodology_seqeval_crosscheck.jsonl", checks)
     write_jsonl(out_dir / "methodology_per_label_strict.jsonl", per_label_rows)
     write_jsonl(out_dir / "methodology_confusion_matrix.jsonl", confusion_rows)
     write_jsonl(out_dir / "methodology_error_analysis.jsonl", error_rows)
     write_jsonl(out_dir / "oov_entity_analysis.jsonl", oov_rows)
+    write_jsonl(out_dir / "ambiguity_analysis.jsonl", ambiguity_analysis_rows)
     write_methodology_report(
         out_dir / "methodology_baseline.md",
         rows,
